@@ -51,7 +51,7 @@
     <!-- Header / Top Navigation -->
     <header class="bg-afisco-blue text-white shadow-md sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-            <!-- Brand Logo & Identity with Real Company Photo/Avatar -->
+            <!-- Brand Logo & Identity -->
             <div class="flex items-center space-x-3">
                 <div class="bg-white p-1 rounded-xl shadow-inner flex items-center justify-center w-12 h-12 overflow-hidden border-2 border-afisco-red/40">
                     <img src="https://i.ibb.co/LzQghbf8/Afisco.png" alt="Afisco" class="w-full h-full object-contain">
@@ -116,9 +116,6 @@
                 </button>
                 <button onclick="switchTab('ficha')" id="nav-ficha" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 text-blue-200 hover:bg-blue-900 hover:text-white">
                     <i class="fa-solid fa-id-card"></i> Ficha do Cliente
-                </button>
-                <button onclick="switchTab('ia_assistant')" id="nav-ia_assistant" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-md">
-                    <i class="fa-solid fa-robot"></i> IA Afisco
                 </button>
             </div>
         </nav>
@@ -239,7 +236,7 @@
                     <h2 class="text-xl font-bold text-afisco-blue flex items-center gap-2">
                         <i class="fa-solid fa-users text-afisco-red"></i> Cadastro de Clientes
                     </h2>
-                    <p class="text-xs text-afisco-textMuted mt-1">Gerencie a carteira de clientes da Afisco Contabilidade.</p>
+                    <p class="text-xs text-afisco-textMuted mt-1">Gerencie a carteira de clientes e o responsável/funcionário vinculado.</p>
                 </div>
                 <button onclick="openClientModal('new')" class="bg-afisco-red hover:bg-afisco-darkRed text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition shadow flex items-center gap-2">
                     <i class="fa-solid fa-user-plus"></i> Novo Cliente
@@ -251,7 +248,7 @@
                     <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                         <i class="fa-solid fa-search"></i>
                     </span>
-                    <input type="text" id="clientSearchInput" onkeyup="renderClientsTable()" placeholder="Pesquisar por nome ou CNPJ..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                    <input type="text" id="clientSearchInput" onkeyup="renderClientsTable()" placeholder="Pesquisar por nome, CNPJ ou responsável..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
                 </div>
                 <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
                     <select id="clientStatusFilter" onchange="renderClientsTable()" class="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium px-3 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-afisco-blue">
@@ -269,9 +266,9 @@
                             <tr class="bg-slate-50 text-slate-600 text-xs uppercase font-semibold border-b border-slate-200">
                                 <th class="p-4">Empresa / Cliente</th>
                                 <th class="p-4">CNPJ</th>
+                                <th class="p-4">Responsável / Funcionário</th>
                                 <th class="p-4">Mensalidade</th>
                                 <th class="p-4">Vencimento</th>
-                                <th class="p-4">Início Contrato</th>
                                 <th class="p-4">Status</th>
                                 <th class="p-4 text-right">Ações</th>
                             </tr>
@@ -322,13 +319,13 @@
                         <thead>
                             <tr class="bg-slate-50 text-slate-600 text-xs uppercase font-semibold border-b border-slate-200">
                                 <th class="p-4">Cliente</th>
+                                <th class="p-4">Responsável</th>
                                 <th class="p-4">Mês Ref.</th>
                                 <th class="p-4">Previsto</th>
                                 <th class="p-4">Vencimento</th>
                                 <th class="p-4">Data Pgto</th>
                                 <th class="p-4">Valor Pago</th>
                                 <th class="p-4">Status</th>
-                                <th class="p-4">Atraso</th>
                                 <th class="p-4 text-right">Ação / Editar</th>
                             </tr>
                         </thead>
@@ -362,11 +359,10 @@
                         <thead>
                             <tr class="bg-red-50/50 text-red-900 text-xs uppercase font-semibold border-b border-red-100">
                                 <th class="p-4">Cliente / CNPJ</th>
+                                <th class="p-4">Responsável</th>
                                 <th class="p-4">Mensalidades Vencidas</th>
                                 <th class="p-4">Valor Total Devido</th>
                                 <th class="p-4">Mais Antiga em Aberto</th>
-                                <th class="p-4">Dias de Atraso</th>
-                                <th class="p-4">Último Pagamento</th>
                                 <th class="p-4 text-right">Ações</th>
                             </tr>
                         </thead>
@@ -446,57 +442,6 @@
             <div id="fichaContentContainer" class="space-y-6"></div>
         </div>
 
-        <!-- ================= 7. TAB: IA ASSISTANT ================= -->
-        <div id="tab-ia_assistant" class="tab-content space-y-6 hidden">
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                <div class="flex items-center justify-between mb-6 border-b pb-4">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-12 h-12 rounded-xl bg-blue-900 text-white flex items-center justify-center text-xl shadow-md">
-                            <i class="fas fa-robot text-red-500"></i>
-                        </div>
-                        <div>
-                            <h2 class="text-xl font-bold text-slate-800">Assistente Inteligente Afisco (Gemini AI)</h2>
-                            <p class="text-sm text-slate-500">Faça perguntas sobre sua carteira de clientes, faturamento, previsões e estratégias de cobrança.</p>
-                        </div>
-                    </div>
-                    <button onclick="clearAIChat()" class="px-4 py-2 text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition font-medium">
-                        <i class="fas fa-trash-alt mr-2"></i> Limpar Conversa
-                    </button>
-                </div>
-
-                <div class="mb-4 flex flex-wrap gap-2">
-                    <span class="text-xs font-semibold text-slate-400 flex items-center mr-1">Sugestões:</span>
-                    <button onclick="sendQuickPrompt('Qual o cliente que mais nos traz faturamento e qual sua situação?')" class="text-xs bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 px-3 py-1.5 rounded-lg border border-slate-200 transition">
-                        🏆 Top Cliente & Situação
-                    </button>
-                    <button onclick="sendQuickPrompt('Quais são as principais recomendações para reduzir a inadimplência este mês?')" class="text-xs bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 px-3 py-1.5 rounded-lg border border-slate-200 transition">
-                        💡 Dicas Reduzir Inadimplência
-                    </button>
-                    <button onclick="sendQuickPrompt('Resuma a saúde financeira atual da Afisco Contabilidade.')" class="text-xs bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 px-3 py-1.5 rounded-lg border border-slate-200 transition">
-                        📊 Resumo Financeiro
-                    </button>
-                </div>
-
-                <div id="aiChatBox" class="h-96 bg-slate-50 border border-slate-200 rounded-xl p-4 overflow-y-auto mb-4 space-y-4 custom-scrollbar">
-                    <div class="flex items-start space-x-3">
-                        <div class="w-8 h-8 rounded-lg bg-blue-900 text-white flex items-center justify-center flex-shrink-0 text-sm">
-                            <i class="fas fa-robot text-red-400"></i>
-                        </div>
-                        <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 text-sm text-slate-700 max-w-2xl">
-                            Olá! Sou o assistente virtual da <strong>Afisco Contabilidade</strong>. Como posso ajudar na gestão financeira, análise de inadimplência ou relatórios hoje?
-                        </div>
-                    </div>
-                </div>
-
-                <div class="flex gap-2">
-                    <input type="text" id="aiUserInput" onkeypress="handleAIKeyPress(event)" placeholder="Digite sua pergunta para a IA..." class="flex-grow px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
-                    <button onclick="sendAIPrompt()" class="bg-afisco-blue hover:bg-blue-800 text-white px-6 py-3 rounded-xl font-semibold text-sm transition shadow flex items-center gap-2">
-                        <i class="fas fa-paper-plane"></i> Enviar
-                    </button>
-                </div>
-            </div>
-        </div>
-
     </main>
 
     <!-- Modal de Cadastro / Edição de Cliente -->
@@ -518,15 +463,21 @@
                         <input type="text" id="modalClientCnpj" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
                     </div>
                     <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Responsável / Funcionário</label>
+                        <input type="text" id="modalClientResponsible" placeholder="Ex: Harrisson / Nome" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Valor da Mensalidade (R$)</label>
                         <input type="number" step="0.01" id="modalClientValue" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
                     </div>
-                </div>
-                <div class="grid grid-cols-3 gap-3">
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Dia Vencimento</label>
                         <input type="number" min="1" max="31" id="modalClientDueDay" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
                     </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Início Contrato</label>
                         <input type="date" id="modalClientStart" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
@@ -602,11 +553,11 @@
         const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
         let defaultClients = [
-            { id: 1, name: "Comercial Bahia Ltda", cnpj: "12.345.678/0001-90", value: 850.00, dueDay: 10, start: "2024-01-15", status: "ativo" },
-            { id: 2, name: "Supermercado Itororó", cnpj: "98.765.432/0001-12", value: 1200.00, dueDay: 5, start: "2023-05-10", status: "ativo" },
-            { id: 3, name: "Construtora Varges & CIA", cnpj: "45.123.789/0001-44", value: 1500.00, dueDay: 15, start: "2022-11-20", status: "ativo" },
-            { id: 4, name: "Panificadora Pão Dourado", cnpj: "78.901.234/0001-88", value: 650.00, dueDay: 10, start: "2024-03-01", status: "ativo" },
-            { id: 5, name: "Farmácia São Judas", cnpj: "32.109.876/0001-55", value: 950.00, dueDay: 20, start: "2023-08-12", status: "ativo" }
+            { id: 1, name: "Comercial Bahia Ltda", cnpj: "12.345.678/0001-90", responsible: "Harrisson", value: 850.00, dueDay: 10, start: "2024-01-15", status: "ativo" },
+            { id: 2, name: "Supermercado Itororó", cnpj: "98.765.432/0001-12", responsible: "Equipe", value: 1200.00, dueDay: 5, start: "2023-05-10", status: "ativo" },
+            { id: 3, name: "Construtora Varges & CIA", cnpj: "45.123.789/0001-44", responsible: "Harrisson", value: 1500.00, dueDay: 15, start: "2022-11-20", status: "ativo" },
+            { id: 4, name: "Panificadora Pão Dourado", cnpj: "78.901.234/0001-88", responsible: "Equipe", value: 650.00, dueDay: 10, start: "2024-03-01", status: "ativo" },
+            { id: 5, name: "Farmácia São Judas", cnpj: "32.109.876/0001-55", responsible: "Harrisson", value: 950.00, dueDay: 20, start: "2023-08-12", status: "ativo" }
         ];
 
         let clients = JSON.parse(localStorage.getItem('afisco_clients')) || defaultClients;
@@ -670,19 +621,13 @@
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.tab-btn').forEach(btn => {
-                if(!btn.id.includes('ia_assistant')) {
-                    btn.className = "tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 text-blue-200 hover:bg-blue-900 hover:text-white";
-                }
+                btn.className = "tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 text-blue-200 hover:bg-blue-900 hover:text-white";
             });
 
             document.getElementById('tab-' + tabId).classList.remove('hidden');
             let activeBtn = document.getElementById('nav-' + tabId);
             if(activeBtn) {
-                if(tabId === 'ia_assistant') {
-                    activeBtn.className = "tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-md";
-                } else {
-                    activeBtn.className = "tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 bg-afisco-blue text-white shadow";
-                }
+                activeBtn.className = "tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 bg-afisco-blue text-white shadow";
             }
 
             if(tabId === 'dashboard') updateDashboard();
@@ -741,7 +686,6 @@
             document.getElementById('kpiQtdEmAberto').innerText = `${qtdEmAberto} títulos`;
             document.getElementById('kpiClientesInadimplentesCount').innerText = `${qtdInadimplentes} clientes`;
 
-            // Badge Inadimplência total ano/geral
             let totalGeralVencidos = mensalidades.filter(i => i.status === 'Vencido').length;
             document.getElementById('badgeInadCount').innerText = totalGeralVencidos;
 
@@ -788,7 +732,7 @@
             tbody.innerHTML = '';
 
             let filtered = clients.filter(c => {
-                let matchSearch = c.name.toLowerCase().includes(search) || c.cnpj.includes(search);
+                let matchSearch = c.name.toLowerCase().includes(search) || c.cnpj.includes(search) || (c.responsible && c.responsible.toLowerCase().includes(search));
                 let matchStatus = filterStatus === 'todos' || c.status === filterStatus;
                 return matchSearch && matchStatus;
             });
@@ -807,9 +751,9 @@
                         <div>${c.name}</div>
                     </td>
                     <td class="p-4 text-slate-600 font-mono text-xs">${c.cnpj}</td>
+                    <td class="p-4 text-slate-700 font-medium"><span class="bg-blue-50 text-blue-800 text-xs px-2.5 py-1 rounded-lg">${c.responsible || 'Não atribuído'}</span></td>
                     <td class="p-4 font-bold text-slate-700">${formatCurrency(c.value)}</td>
                     <td class="p-4 text-slate-600">Dia ${c.dueDay}</td>
-                    <td class="p-4 text-slate-600 text-xs">${c.start.split('-').reverse().join('/')}</td>
                     <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${c.status==='ativo'?'bg-emerald-50 text-emerald-600':'bg-slate-100 text-slate-500'}">${c.status.toUpperCase()}</span></td>
                     <td class="p-4 text-right space-x-1">
                         <button onclick="openClientModal('edit', ${c.id})" class="p-2 bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 rounded-lg transition" title="Editar"><i class="fa-solid fa-pen"></i></button>
@@ -826,6 +770,7 @@
                 document.getElementById('modalClientId').value = '';
                 document.getElementById('modalClientName').value = '';
                 document.getElementById('modalClientCnpj').value = '';
+                document.getElementById('modalClientResponsible').value = '';
                 document.getElementById('modalClientValue').value = '';
                 document.getElementById('modalClientDueDay').value = '10';
                 document.getElementById('modalClientStart').value = new Date().toISOString().split('T')[0];
@@ -837,6 +782,7 @@
                     document.getElementById('modalClientId').value = c.id;
                     document.getElementById('modalClientName').value = c.name;
                     document.getElementById('modalClientCnpj').value = c.cnpj;
+                    document.getElementById('modalClientResponsible').value = c.responsible || '';
                     document.getElementById('modalClientValue').value = c.value;
                     document.getElementById('modalClientDueDay').value = c.dueDay;
                     document.getElementById('modalClientStart').value = c.start;
@@ -853,6 +799,7 @@
             let id = document.getElementById('modalClientId').value;
             let name = document.getElementById('modalClientName').value;
             let cnpj = document.getElementById('modalClientCnpj').value;
+            let responsible = document.getElementById('modalClientResponsible').value;
             let value = parseFloat(document.getElementById('modalClientValue').value);
             let dueDay = parseInt(document.getElementById('modalClientDueDay').value);
             let start = document.getElementById('modalClientStart').value;
@@ -865,8 +812,7 @@
 
             if(!id) {
                 let newId = clients.length > 0 ? Math.max(...clients.map(c => c.id)) + 1 : 1;
-                clients.push({ id: newId, name, cnpj, value, dueDay, start, status });
-                // Criar mensalidades do ano corrente para o novo cliente
+                clients.push({ id: newId, name, cnpj, responsible, value, dueDay, start, status });
                 for(let m=1; m<=12; m++) {
                     mensalidades.push({
                         id: mensalidades.length > 0 ? Math.max(...mensalidades.map(i => i.id)) + 1 : 1,
@@ -885,6 +831,7 @@
                 if(c) {
                     c.name = name;
                     c.cnpj = cnpj;
+                    c.responsible = responsible;
                     c.value = value;
                     c.dueDay = dueDay;
                     c.start = start;
@@ -938,13 +885,13 @@
                 tr.className = "hover:bg-slate-50/80 transition";
                 tr.innerHTML = `
                     <td class="p-4 font-semibold text-afisco-blue">${client.name}</td>
+                    <td class="p-4 text-slate-600 text-xs"><span class="bg-blue-50 text-blue-800 px-2 py-0.5 rounded">${client.responsible || 'N/D'}</span></td>
                     <td class="p-4 text-slate-600 text-xs">${monthNames[item.month-1]}</td>
                     <td class="p-4 font-bold text-slate-700">${formatCurrency(item.previsto)}</td>
                     <td class="p-4 text-slate-600 text-xs">${item.dueDate.split('-').reverse().join('/')}</td>
                     <td class="p-4 text-slate-600 text-xs">${item.payDate ? item.payDate.split('-').reverse().join('/') : '-'}</td>
                     <td class="p-4 font-bold text-emerald-600">${formatCurrency(item.paidValue)}</td>
                     <td class="p-4">${statusBadge}</td>
-                    <td class="p-4 text-xs font-medium text-slate-500">${item.status === 'Vencido' ? 'Atrasado' : '-'}</td>
                     <td class="p-4 text-right">
                         <button onclick="openBillingModal(${item.id})" class="px-3 py-1.5 bg-blue-50 hover:bg-afisco-blue text-afisco-blue hover:text-white rounded-lg transition text-xs font-semibold"><i class="fa-solid fa-pen-to-square mr-1"></i> Baixar / Editar</button>
                     </td>
@@ -1034,11 +981,10 @@
             document.getElementById('inadTotalDevido').innerText = formatCurrency(totalDevido);
 
             if(vencidos.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">Nenhum cliente inadimplente no momento. Parabéns!</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">Nenhum cliente inadimplente no momento. Parabéns!</td></tr>`;
                 return;
             }
 
-            // Agrupar por cliente
             let grouped = {};
             vencidos.forEach(item => {
                 if(!grouped[item.clientId]) {
@@ -1056,9 +1002,6 @@
                 let client = clients.find(c => c.id === g.clientId);
                 if(!client) return;
 
-                let lastPay = mensalidades.filter(i => i.clientId === client.id && i.status === 'Pago').sort((a,b) => new Date(b.payDate) - new Date(a.payDate))[0];
-                let lastPayStr = lastPay ? `${lastPay.payDate.split('-').reverse().join('/')} (${formatCurrency(lastPay.paidValue)})` : 'Nenhum registro';
-
                 let tr = document.createElement('tr');
                 tr.className = "hover:bg-red-50/30 transition";
                 tr.innerHTML = `
@@ -1066,11 +1009,10 @@
                         <div>${client.name}</div>
                         <div class="text-xs text-slate-400 font-mono font-normal">${client.cnpj}</div>
                     </td>
+                    <td class="p-4 text-slate-700"><span class="bg-blue-50 text-blue-800 text-xs px-2.5 py-1 rounded">${client.responsible || 'N/D'}</span></td>
                     <td class="p-4 text-slate-700 font-semibold">${g.count} mensalidade(s)</td>
                     <td class="p-4 font-bold text-afisco-red text-base">${formatCurrency(g.total)}</td>
                     <td class="p-4 text-slate-600 text-xs">${monthNames[g.oldestMonth-1]} / ${g.oldestYear}</td>
-                    <td class="p-4"><span class="bg-red-100 text-afisco-red font-bold text-xs px-2.5 py-1 rounded-full">> 30 dias</span></td>
-                    <td class="p-4 text-slate-600 text-xs">${lastPayStr}</td>
                     <td class="p-4 text-right">
                         <button onclick="switchTab('ficha'); document.getElementById('fichaClientSelect').value = ${client.id}; renderClientFicha();" class="px-3 py-1.5 bg-afisco-red hover:bg-afisco-darkRed text-white rounded-lg transition text-xs font-semibold"><i class="fa-solid fa-file-invoice mr-1"></i> Ver Ficha</button>
                     </td>
@@ -1189,7 +1131,7 @@
                         <span class="text-xs text-slate-400 font-semibold uppercase">Empresa / Contrato</span>
                         <div class="text-lg font-bold text-afisco-blue mt-1">${client.name}</div>
                         <div class="text-xs text-slate-500 font-mono mt-1">CNPJ: ${client.cnpj}</div>
-                        <div class="text-xs text-slate-500 mt-1">Início: ${client.start.split('-').reverse().join('/')} (Venc. Dia ${client.dueDay})</div>
+                        <div class="text-xs text-slate-500 mt-1">Responsável: <span class="font-semibold text-blue-800">${client.responsible || 'Não definido'}</span></div>
                     </div>
                     <div class="bg-white p-5 rounded-2xl shadow-sm border border-afisco-border">
                         <span class="text-xs text-slate-400 font-semibold uppercase">Total Pago no Ano</span>
@@ -1226,79 +1168,6 @@
             `;
         }
 
-        // ================= AI ASSISTANT LOGIC =================
-        function sendQuickPrompt(text) {
-            document.getElementById('aiUserInput').value = text;
-            sendAIPrompt();
-        }
-
-        function handleAIKeyPress(e) {
-            if(e.key === 'Enter') sendAIPrompt();
-        }
-
-        function clearAIChat() {
-            let chatBox = document.getElementById('aiChatBox');
-            chatBox.innerHTML = `
-                <div class="flex items-start space-x-3">
-                    <div class="w-8 h-8 rounded-lg bg-blue-900 text-white flex items-center justify-center flex-shrink-0 text-sm">
-                        <i class="fas fa-robot text-red-400"></i>
-                    </div>
-                    <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 text-sm text-slate-700 max-w-2xl">
-                        Conversa limpa. Como posso ajudar com os dados da Afisco Contabilidade?
-                    </div>
-                </div>
-            `;
-        }
-
-        function sendAIPrompt() {
-            let input = document.getElementById('aiUserInput');
-            let query = input.value.trim();
-            if(!query) return;
-
-            let chatBox = document.getElementById('aiChatBox');
-            chatBox.innerHTML += `
-                <div class="flex items-start justify-end space-x-3">
-                    <div class="bg-afisco-blue text-white p-3 rounded-2xl shadow-sm text-sm max-w-2xl">
-                        ${query}
-                    </div>
-                </div>
-            `;
-            input.value = '';
-            chatBox.scrollTop = chatBox.scrollHeight;
-
-            setTimeout(() => {
-                let response = generateAIResponse(query);
-                chatBox.innerHTML += `
-                    <div class="flex items-start space-x-3">
-                        <div class="w-8 h-8 rounded-lg bg-blue-900 text-white flex items-center justify-center flex-shrink-0 text-sm">
-                            <i class="fas fa-robot text-red-400"></i>
-                        </div>
-                        <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 text-sm text-slate-700 max-w-2xl">
-                            ${response}
-                        </div>
-                    </div>
-                `;
-                chatBox.scrollTop = chatBox.scrollHeight;
-            }, 600);
-        }
-
-        function generateAIResponse(query) {
-            let q = query.toLowerCase();
-            if(q.includes('faturamento') || q.includes('maior') || q.includes('cliente')) {
-                let sortedClients = [...clients].sort((a,b) => b.value - a.value);
-                let topClient = sortedClients[0];
-                return `O cliente com maior faturamento na Afisco Contabilidade é a <strong>${topClient.name}</strong>, com uma mensalidade contratada de ${formatCurrency(topClient.value)}. A situação atual do contrato está regular e ativa.`;
-            } else if(q.includes('inadimplência') || q.includes('reduzir') || q.includes('atraso')) {
-                return `Para reduzir a inadimplência este mês, recomendo: 1) Enviar lembretes automatizados via WhatsApp 3 dias antes do vencimento; 2) Oferecer facilidade de pagamento via Pix integrando o comprovante diretamente no sistema; 3) Priorizar o contato direto com clientes em atraso superior a 30 dias listados no Painel de Inadimplência.`;
-            } else if(q.includes('resumo') || q.includes('saúde') || q.includes('financeira')) {
-                let totalC = clients.filter(c => c.status==='ativo').length;
-                return `A <strong>Afisco Contabilidade</strong> possui atualmente ${totalC} clientes ativos cadastrados. A carteira apresenta uma ótima taxa de adimplência, com monitoramento automatizado mensal por meio deste sistema.`;
-            } else {
-                return `Analisando os registros da Afisco Contabilidade para a sua solicitação, verifiquei os dados atualizados em nossa base. Posso auxiliar com mais detalhes sobre relatórios de mensalidades, fluxo de caixa ou listagem de inadimplentes.`;
-            }
-        }
-
-        // Inicializar a aplicação ao carregar
         window.onload = function() {
             initApp();
         };
