@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Afisco Contabilidade - Gestão de Mensalidades</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js for interactive analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        afisco: {
+                            blue: '#11355c',      /* Corporate Navy from Logo */
+                            lightBlue: '#1d4ed8',
+                            red: '#e11d48',        /* Vibrant Red accent from Logo */
+                            darkRed: '#be123c',
+                            grayBg: '#f8fafc',
+                            cardBg: '#ffffff',
+                            border: '#e2e8f0',
+                            textDark: '#0f172a',
+                            textMuted: '#64748b'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .tab-content { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-afisco-grayBg min-h-screen flex flex-col selection:bg-afisco-blue selection:text-white">
+
+    <!-- Header / Top Navigation -->
+    <header class="bg-afisco-blue text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <!-- Brand Logo & Identity -->
+            <div class="flex items-center space-x-3">
+                <div class="bg-white p-1 rounded-xl shadow-inner flex items-center justify-center w-12 h-12 overflow-hidden border-2 border-afisco-red/40">
+                    <img src="https://i.ibb.co/LzQghbf8/Afisco.png" alt="Afisco" border="0" class="w-full h-full object-contain">
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight leading-tight flex items-center gap-2">
+                        Afisco Contabilidade <span class="text-xs bg-afisco-red text-white px-2 py-0.5 rounded-full font-medium">Desde 1992</span>
+                    </h1>
+                    <p class="text-xs text-blue-200">Sistema de Gestão de Mensalidades & Inadimplência</p>
+                </div>
+            </div>
+
+            <!-- Global Filters (Month & Year) -->
+            <div class="flex items-center space-x-2 bg-blue-950/60 p-2 rounded-xl border border-blue-900/50">
+                <div class="flex items-center space-x-1 px-2">
+                    <i class="fa-regular fa-calendar text-blue-300 text-sm"></i>
+                    <span class="text-xs font-semibold text-blue-200 hidden sm:inline">Período:</span>
+                </div>
+                <select id="globalMonth" onchange="handleGlobalFilterChange()" class="bg-blue-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-700 focus:outline-none focus:ring-2 focus:ring-afisco-red">
+                    <option value="1">Janeiro</option>
+                    <option value="2">Fevereiro</option>
+                    <option value="3">Março</option>
+                    <option value="4">Abril</option>
+                    <option value="5">Maio</option>
+                    <option value="6">Junho</option>
+                    <option value="7">Julho</option>
+                    <option value="8" selected>Agosto</option>
+                    <option value="9">Setembro</option>
+                    <option value="10">Outubro</option>
+                    <option value="11">Novembro</option>
+                    <option value="12">Dezembro</option>
+                </select>
+                <select id="globalYear" onchange="handleGlobalFilterChange()" class="bg-blue-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-700 focus:outline-none focus:ring-2 focus:ring-afisco-red">
+                    <option value="2026" selected>2026</option>
+                    <option value="2025">2025</option>
+                    <option value="2024">2024</option>
+                </select>
+                <button onclick="resetDataToDemo()" title="Restaurar dados de exemplo" class="bg-blue-800 hover:bg-blue-700 text-blue-200 hover:text-white px-2.5 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1">
+                    <i class="fa-solid fa-rotate-right"></i> <span class="hidden md:inline">Resetar</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Tab Navigation Bar -->
+        <nav class="bg-blue-950 px-4 sm:px-6 lg:px-8 border-t border-blue-900/80">
+            <div class="max-w-7xl mx-auto flex space-x-1 overflow-x-auto py-2 custom-scrollbar">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 bg-afisco-blue text-white shadow">
+                    <i class="fa-solid fa-chart-pie"></i> Dashboard
+                </button>
+                <button onclick="switchTab('clients')" id="nav-clients" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 text-blue-200 hover:bg-blue-900 hover:text-white">
+                    <i class="fa-solid fa-users"></i> Clientes
+                </button>
+                <button onclick="switchTab('mensalidades')" id="nav-mensalidades" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 text-blue-200 hover:bg-blue-900 hover:text-white">
+                    <i class="fa-solid fa-file-invoice-dollar"></i> Mensalidades
+                </button>
+                <button onclick="switchTab('inadimplencia')" id="nav-inadimplencia" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 text-blue-200 hover:bg-blue-900 hover:text-white">
+                    <i class="fa-solid fa-triangle-exclamation text-red-400"></i> Inadimplência
+                    <span id="badgeInadCount" class="bg-afisco-red text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">0</span>
+                </button>
+                <button onclick="switchTab('analise')" id="nav-analise" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 text-blue-200 hover:bg-blue-900 hover:text-white">
+                    <i class="fa-solid fa-chart-line"></i> Análise por Funcionário
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
+
+        <!-- 1. DASHBOARD -->
+        <div id="tab-dashboard" class="tab-content space-y-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-afisco-border">
+                    <div class="text-xs font-semibold text-afisco-textMuted uppercase">Faturamento Previsto</div>
+                    <div class="text-2xl font-bold text-afisco-blue mt-2" id="kpiPrevisto">R$ 0,00</div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-afisco-border">
+                    <div class="text-xs font-semibold text-afisco-textMuted uppercase">Total Recebido</div>
+                    <div class="text-2xl font-bold text-emerald-600 mt-2" id="kpiRecebido">R$ 0,00</div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-afisco-border">
+                    <div class="text-xs font-semibold text-afisco-textMuted uppercase">Em Aberto</div>
+                    <div class="text-2xl font-bold text-amber-600 mt-2" id="kpiEmAberto">R$ 0,00</div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-afisco-border">
+                    <div class="text-xs font-semibold text-afisco-textMuted uppercase">Inadimplente</div>
+                    <div class="text-2xl font-bold text-afisco-red mt-2" id="kpiInadimplencia">R$ 0,00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. CLIENTES -->
+        <div id="tab-clients" class="tab-content space-y-6 hidden">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-afisco-border flex justify-between items-center">
+                <h2 class="text-xl font-bold text-afisco-blue"><i class="fa-solid fa-users text-afisco-red mr-2"></i> Clientes</h2>
+                <button onclick="addDemoClient()" class="bg-afisco-red text-white text-xs px-4 py-2 rounded-xl font-semibold"><i class="fa-solid fa-plus mr-1"></i> Adicionar Cliente</button>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm border border-afisco-border overflow-hidden">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead><tr class="bg-slate-50 text-slate-600 text-xs uppercase border-b"><th class="p-4">Empresa</th><th class="p-4">CNPJ</th><th class="p-4">Mensalidade Padrão</th></tr></thead>
+                    <tbody id="clientsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 3. MENSALIDADES (Com Responsável/Funcionário) -->
+        <div id="tab-mensalidades" class="tab-content space-y-6 hidden">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-afisco-border flex justify-between items-center">
+                <div>
+                    <h2 class="text-xl font-bold text-afisco-blue"><i class="fa-solid fa-file-invoice-dollar text-afisco-red mr-2"></i> Controle de Mensalidades</h2>
+                    <p class="text-xs text-slate-500">Defina qual funcionário cuida de cada mensalidade.</p>
+                </div>
+                <button onclick="gerarMensalidadesMes()" class="bg-afisco-blue text-white text-xs px-4 py-2.5 rounded-xl font-semibold"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Gerar Faturamento do Mês</button>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm border border-afisco-border overflow-hidden">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-slate-50 text-slate-600 text-xs uppercase border-b">
+                            <th class="p-4">Cliente</th>
+                            <th class="p-4">Valor (R$)</th>
+                            <th class="p-4">Responsável / Funcionário</th>
+                            <th class="p-4">Status</th>
+                            <th class="p-4 text-right">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mensalidadesTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 4. INADIMPLÊNCIA -->
+        <div id="tab-inadimplencia" class="tab-content space-y-6 hidden">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-afisco-border">
+                <h2 class="text-xl font-bold text-afisco-blue"><i class="fa-solid fa-triangle-exclamation text-afisco-red mr-2"></i> Painel de Inadimplência</h2>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm border border-afisco-border overflow-hidden">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead><tr class="bg-red-50 text-red-900 text-xs uppercase border-b"><th class="p-4">Cliente</th><th class="p-4">Valor Devido</th><th class="p-4">Mês Ref.</th></tr></thead>
+                    <tbody id="inadimplenciaTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 5. ANÁLISE POR FUNCIONÁRIO -->
+        <div id="tab-analise" class="tab-content space-y-6 hidden">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-afisco-border">
+                <h2 class="text-xl font-bold text-afisco-blue"><i class="fa-solid fa-chart-line text-afisco-red mr-2"></i> Levantamento de Receitas por Funcionário</h2>
+                <p class="text-xs text-slate-500 mt-1">Veja exatamente quanto cada colaborador atende e movimenta no mês selecionado.</p>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm border border-afisco-border overflow-hidden">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead><tr class="bg-slate-50 text-slate-600 text-xs uppercase border-b"><th class="p-4">Funcionário / Responsável</th><th class="p-4">Total Arrecadado / Atendido (R$)</th><th class="p-4">Qtd. de Clientes</th></tr></thead>
+                    <tbody id="analiseFuncionariosBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // Banco de Dados Local Inicial
+        let db = JSON.parse(localStorage.getItem('afisco_db_v2')) || {
+            clients: [
+                { id: 1, name: "Supermercado Exemplo", cnpj: "12.345.678/0001-99", value: 1200 },
+                { id: 2, name: "Comércio de Roupas LTDA", cnpj: "98.765.432/0001-11", value: 800 },
+                { id: 3, name: "Construtora Silva", cnpj: "11.222.333/0001-44", value: 1500 }
+            ],
+            mensalidades: [
+                { id: 1, clientId: 1, mes: 8, ano: 2026, valor: 1200, responsavel: "Hélio (Eu)", status: "Pago" },
+                { id: 2, clientId: 2, mes: 8, ano: 2026, valor: 800, responsavel: "Maria", status: "Em aberto" },
+                { id: 3, clientId: 3, mes: 8, ano: 2026, valor: 1500, responsavel: "João", status: "Inadimplente" }
+            ]
+        };
+
+        function saveData() {
+            localStorage.setItem('afisco_db_v2', JSON.stringify(db));
+            refreshUI();
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('bg-afisco-blue', 'text-white', 'shadow');
+                el.classList.add('text-blue-200', 'hover:bg-blue-900');
+            });
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+            const btn = document.getElementById('nav-' + tabId);
+            if(btn) {
+                btn.classList.remove('text-blue-200', 'hover:bg-blue-900');
+                btn.classList.add('bg-afisco-blue', 'text-white', 'shadow');
+            }
+            refreshUI();
+        }
+
+        function handleGlobalFilterChange() {
+            refreshUI();
+        }
+
+        function refreshUI() {
+            const currentMonth = parseInt(document.getElementById('globalMonth').value);
+            const currentYear = parseInt(document.getElementById('globalYear').value);
+
+            const mensalidadesMes = db.mensalidades.filter(m => m.mes === currentMonth && m.ano === currentYear);
+
+            // KPIs
+            const previsto = mensalidadesMes.reduce((acc, m) => acc + m.valor, 0);
+            const recebido = mensalidadesMes.filter(m => m.status === 'Pago').reduce((acc, m) => acc + m.valor, 0);
+            const emAberto = mensalidadesMes.filter(m => m.status === 'Em aberto').reduce((acc, m) => acc + m.valor, 0);
+            const inadimplente = mensalidadesMes.filter(m => m.status === 'Inadimplente').reduce((acc, m) => acc + m.valor, 0);
+
+            document.getElementById('kpiPrevisto').innerText = `R$ ${previsto.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            document.getElementById('kpiRecebido').innerText = `R$ ${recebido.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            document.getElementById('kpiEmAberto').innerText = `R$ ${emAberto.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            document.getElementById('kpiInadimplencia').innerText = `R$ ${inadimplente.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            document.getElementById('badgeInadCount').innerText = mensalidadesMes.filter(m => m.status === 'Inadimplente').length;
+
+            // Render Clientes
+            const clientBody = document.getElementById('clientsTableBody');
+            clientBody.innerHTML = db.clients.map(c => `
+                <tr class="border-b border-slate-100">
+                    <td class="p-4 font-medium text-afisco-blue">${c.name}</td>
+                    <td class="p-4 text-slate-500">${c.cnpj}</td>
+                    <td class="p-4 font-semibold">R$ ${c.value.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                </tr>
+            `).join('');
+
+            // Render Mensalidades com input editável de Responsável/Funcionário
+            const mensBody = document.getElementById('mensalidadesTableBody');
+            mensBody.innerHTML = mensalidadesMes.map(m => {
+                const client = db.clients.find(c => c.id === m.clientId) || { name: 'Cliente Removido' };
+                return `
+                    <tr class="border-b border-slate-100">
+                        <td class="p-4 font-medium text-afisco-blue">${client.name}</td>
+                        <td class="p-4 font-semibold">R$ ${m.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                        <td class="p-4">
+                            <input type="text" value="${m.responsavel || 'Hélio'}" onchange="updateResponsavel(${m.id}, this.value)" class="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs w-full focus:outline-none focus:ring-1 focus:ring-afisco-blue">
+                        </td>
+                        <td class="p-4">
+                            <select onchange="updateStatus(${m.id}, this.value)" class="bg-slate-50 border border-slate-200 text-xs rounded-lg px-2 py-1">
+                                <option value="Em aberto" ${m.status === 'Em aberto' ? 'selected' : ''}>Em aberto</option>
+                                <option value="Pago" ${m.status === 'Pago' ? 'selected' : ''}>Pago</option>
+                                <option value="Inadimplente" ${m.status === 'Inadimplente' ? 'selected' : ''}>Inadimplente</option>
+                            </select>
+                        </td>
+                        <td class="p-4 text-right">
+                            <button onclick="removeMensalidade(${m.id})" class="text-red-500 hover:text-red-700 text-xs"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Render Inadimplência
+            const inadBody = document.getElementById('inadimplenciaTableBody');
+            const inadList = mensalidadesMes.filter(m => m.status === 'Inadimplente');
+            inadBody.innerHTML = inadList.map(m => {
+                const client = db.clients.find(c => c.id === m.clientId) || { name: 'Cliente' };
+                return `
+                    <tr class="border-b border-slate-100">
+                        <td class="p-4 font-medium text-afisco-blue">${client.name}</td>
+                        <td class="p-4 font-bold text-afisco-red">R$ ${m.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                        <td class="p-4 text-slate-500">${m.mes}/${m.ano}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Render Análise por Funcionário
+            const funcionariosMap = {};
+            mensalidadesMes.forEach(m => {
+                const resp = m.responsavel || 'Não atribuído';
+                if(!funcionariosMap[resp]) {
+                    funcionariosMap[resp] = { total: 0, qtd: 0 };
+                }
+                funcionariosMap[resp].total += m.valor;
+                funcionariosMap[resp].qtd += 1;
+            });
+
+            const funcBody = document.getElementById('analiseFuncionariosBody');
+            funcBody.innerHTML = Object.keys(funcionariosMap).map(resp => `
+                <tr class="border-b border-slate-100">
+                    <td class="p-4 font-bold text-afisco-blue"><i class="fa-solid fa-user-tie text-afisco-red mr-2"></i> ${resp}</td>
+                    <td class="p-4 font-semibold text-emerald-600">R$ ${funcionariosMap[resp].total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                    <td class="p-4 text-slate-600">${funcionariosMap[resp].qtd} cliente(s)</td>
+                </tr>
+            `).join('');
+        }
+
+        function updateResponsavel(id, novoResp) {
+            const m = db.mensalidades.find(item => item.id === id);
+            if(m) {
+                m.responsavel = novoResp;
+                saveData();
+            }
+        }
+
+        function updateStatus(id, novoStatus) {
+            const m = db.mensalidades.find(item => item.id === id);
+            if(m) {
+                m.status = novoStatus;
+                saveData();
+            }
+        }
+
+        function gerarMensalidadesMes() {
+            const currentMonth = parseInt(document.getElementById('globalMonth').value);
+            const currentYear = parseInt(document.getElementById('globalYear').value);
+
+            db.clients.forEach(client => {
+                const existe = db.mensalidades.some(m => m.clientId === client.id && m.mes === currentMonth && m.ano === currentYear);
+                if(!existe) {
+                    const newId = db.mensalidades.length > 0 ? Math.max(...db.mensalidades.map(m => m.id)) + 1 : 1;
+                    db.mensalidades.push({
+                        id: newId,
+                        clientId: client.id,
+                        mes: currentMonth,
+                        ano: currentYear,
+                        valor: client.value,
+                        responsavel: "Hélio (Eu)",
+                        status: "Em aberto"
+                    });
+                }
+            });
+            saveData();
+            alert("Faturamento do mês gerado com sucesso!");
+        }
+
+        function addDemoClient() {
+            const name = prompt("Nome da nova empresa/cliente:");
+            if(!name) return;
+            const value = parseFloat(prompt("Valor padrão da mensalidade (R$):", "500")) || 500;
+            const newId = db.clients.length > 0 ? Math.max(...db.clients.map(c => c.id)) + 1 : 1;
+            db.clients.push({ id: newId, name: name, cnpj: "00.000.000/0001-00", value: value });
+            saveData();
+        }
+
+        function removeMensalidade(id) {
+            db.mensalidades = db.mensalidades.filter(m => m.id !== id);
+            saveData();
+        }
+
+        function resetDataToDemo() {
+            if(confirm("Deseja restaurar os dados padrão?")) {
+                localStorage.removeItem('afisco_db_v2');
+                location.reload();
+            }
+        }
+
+        // Inicializar tela
+        refreshUI();
+    </script>
+</body>
+</html>
