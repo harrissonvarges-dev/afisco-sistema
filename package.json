@@ -1,0 +1,8 @@
+{
+  "name": "afisco-sistema",
+  "version": "1.0.0",
+  "description": "Sistema Afisco Contabilidade",
+  "dependencies": {
+    "@neondatabase/serverless": "^0.9.0"
+  }
+}
