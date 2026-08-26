@@ -1,53 +1,1250 @@
-<script>
-    // Configuração do Tailwind (Mantida intacta)
-    tailwind.config = {
-        theme: {
-            extend: {
-                colors: {
-                    afisco: {
-                        blue: '#11355c',    /* Corporate Navy from Logo */
-                        lightBlue: '#1d4ed8',
-                        red: '#e11d48',     /* Vibrant Red accent from Logo */
-                        darkRed: '#be123c',
-                        grayBg: '#f8fafc',
-                        cardBg: '#ffffff',
-                        border: '#e2e8f0',
-                        textDark: '#0f172a',
-                        textMuted: '#64748b'
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Afisco Contabilidade - Gestão de Mensalidades</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Configuração do Tailwind (Mantida intacta)
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        afisco: {
+                            blue: '#11355c',    /* Corporate Navy from Logo */
+                            lightBlue: '#1d4ed8',
+                            red: '#e11d48',     /* Vibrant Red accent from Logo */
+                            darkRed: '#be123c',
+                            grayBg: '#f8fafc',
+                            cardBg: '#ffffff',
+                            border: '#e2e8f0',
+                            textDark: '#0f172a',
+                            textMuted: '#64748b'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
                     }
-                },
-                fontFamily: {
-                    sans: ['Inter', 'sans-serif'],
                 }
             }
         }
-    }
-</script>
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js for interactive analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<script>
-    // Variáveis globais para armazenar os dados vindos do Neon
-    let clientesData = [];
-    let mensalidadesData = [];
+    <script>
+        // Variáveis globais para armazenar os dados vindos do Neon ou Fallback
+        let clientesData = [
+            { id: 1, name: "Supermercado Compre Bem Ltda", cnpj: "12.345.678/0001-90", responsible: "Harrisson", value: 1200.00, dueDay: 10, start: "2024-01-10", status: "ativo" },
+            { id: 2, name: "Auto Mecânica São José", cnpj: "98.765.432/0001-11", responsible: "Mariana", value: 850.00, dueDay: 15, start: "2024-03-01", status: "ativo" },
+            { id: 3, name: "Clinica Odontológica Sorriso", cnpj: "45.678.901/0001-22", responsible: "Harrisson", value: 1500.00, dueDay: 5, start: "2023-06-15", status: "ativo" },
+            { id: 4, name: "Construtora Bahia Sul", cnpj: "11.222.333/0001-44", responsible: "Carlos", value: 2200.00, dueDay: 20, start: "2024-05-10", status: "ativo" },
+            { id: 5, name: "Padaria e Confeitaria Pão Dourado", cnpj: "55.444.333/0001-88", responsible: "Mariana", value: 650.00, dueDay: 10, start: "2024-02-01", status: "ativo" }
+        ];
 
-    // Função que busca os dados reais da API (Neon) quando a página abre
-    async function carregarDadosDoBanco() {
-        try {
-            const resClientes = await fetch('/api/clientes');
-            clientesData = await resClientes.json();
+        let mensalidadesData = [
+            { id: 101, clientId: 1, month: 8, year: 2026, previsto: 1200.00, due: "2026-08-10", paidDate: "2026-08-08", paidValue: 1200.00, status: "Pago" },
+            { id: 102, clientId: 2, month: 8, year: 2026, previsto: 850.00, due: "2026-08-15", paidDate: "", paidValue: 0, status: "Em aberto" },
+            { id: 103, clientId: 3, month: 8, year: 2026, previsto: 1500.00, due: "2026-08-05", paidDate: "2026-08-04", paidValue: 1500.00, status: "Pago" },
+            { id: 104, clientId: 4, month: 8, year: 2026, previsto: 2200.00, due: "2026-08-20", paidDate: "", paidValue: 0, status: "Em aberto" },
+            { id: 105, clientId: 5, month: 8, year: 2026, previsto: 650.00, due: "2026-08-10", paidDate: "", paidValue: 0, status: "Vencido" }
+        ];
 
-            const resMensalidades = await fetch('/api/mensalidades');
-            mensalidadesData = await resMensalidades.json();
+        // Função que busca os dados reais da API (Neon) se houver, mantendo o fallback
+        async function carregarDadosDoBanco() {
+            try {
+                const resClientes = await fetch('/api/clientes');
+                if(resClientes.ok) {
+                    const dataCli = await resClientes.json();
+                    if(dataCli && dataCli.length > 0) clientesData = dataCli;
+                }
 
-            // Renderiza a interface com os dados reais do banco
-            if (typeof renderDashboard === 'function') renderDashboard();
-            if (typeof renderClientesTable === 'function') renderClientesTable();
-            if (typeof renderMensalidadesTable === 'function') renderMensalidadesTable();
-            if (typeof populateFichaSelect === 'function') populateFichaSelect();
-        } catch (error) {
-            console.error("Erro ao carregar dados do banco:", error);
+                const resMensalidades = await fetch('/api/mensalidades');
+                if(resMensalidades.ok) {
+                    const dataMens = await resMensalidades.json();
+                    if(dataMens && dataMens.length > 0) mensalidadesData = dataMens;
+                }
+            } catch (error) {
+                console.log("Usando dados locais de demonstração (API offline/não configurada).");
+            } finally {
+                initApp();
+            }
         }
-    }
 
-    // Executa a carga dos dados assim que a página é carregada
-    window.onload = carregarDadosDoBanco;
-</script>
+        window.onload = carregarDadosDoBanco;
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .tab-content { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-afisco-grayBg min-h-screen flex flex-col selection:bg-afisco-blue selection:text-white">
+
+    <!-- Header / Top Navigation -->
+    <header class="bg-afisco-blue text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <!-- Brand Logo & Identity -->
+            <div class="flex items-center space-x-3">
+                <div class="bg-white p-1 rounded-xl shadow-inner flex items-center justify-center w-12 h-12 overflow-hidden border-2 border-afisco-red/40">
+                    <img src="https://i.ibb.co/LzQghbf8/Afisco.png" alt="Afisco" class="w-full h-full object-contain">
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight leading-tight flex items-center gap-2">
+                        Afisco Contabilidade <span class="text-xs bg-afisco-red text-white px-2 py-0.5 rounded-full font-medium">Desde 1992</span>
+                    </h1>
+                    <p class="text-xs text-blue-200">Sistema de Gestão de Mensalidades & Inadimplência</p>
+                </div>
+            </div>
+
+            <!-- Global Filters (Month & Year) -->
+            <div class="flex items-center space-x-2 bg-blue-950/60 p-2 rounded-xl border border-blue-900/50">
+                <div class="flex items-center space-x-1 px-2">
+                    <i class="fa-regular fa-calendar text-blue-300 text-sm"></i>
+                    <span class="text-xs font-semibold text-blue-200 hidden sm:inline">Período:</span>
+                </div>
+                <select id="globalMonth" onchange="handleGlobalFilterChange()" class="bg-blue-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-700 focus:outline-none focus:ring-2 focus:ring-afisco-red">
+                    <option value="1">Janeiro</option>
+                    <option value="2">Fevereiro</option>
+                    <option value="3">Março</option>
+                    <option value="4">Abril</option>
+                    <option value="5">Maio</option>
+                    <option value="6">Junho</option>
+                    <option value="7">Julho</option>
+                    <option value="8" selected>Agosto</option>
+                    <option value="9">Setembro</option>
+                    <option value="10">Outubro</option>
+                    <option value="11">Novembro</option>
+                    <option value="12">Dezembro</option>
+                </select>
+                <select id="globalYear" onchange="handleGlobalFilterChange()" class="bg-blue-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-700 focus:outline-none focus:ring-2 focus:ring-afisco-red">
+                    <option value="2026" selected>2026</option>
+                    <option value="2025">2025</option>
+                    <option value="2024">2024</option>
+                </select>
+                <button onclick="resetDataToDemo()" title="Restaurar dados de exemplo" class="bg-blue-800 hover:bg-blue-700 text-blue-200 hover:text-white px-2.5 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1">
+                    <i class="fa-solid fa-rotate-right"></i> <span class="hidden md:inline">Resetar</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Tab Navigation Bar -->
+        <nav class="bg-blue-950 px-4 sm:px-6 lg:px-8 border-t border-blue-900/80">
+            <div class="max-w-7xl mx-auto flex space-x-1 overflow-x-auto py-2 custom-scrollbar">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 bg-afisco-blue text-white shadow">
+                    <i class="fa-solid fa-chart-pie"></i> Dashboard
+                </button>
+                <button onclick="switchTab('clients')" id="nav-clients" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 text-blue-200 hover:bg-blue-900 hover:text-white">
+                    <i class="fa-solid fa-users"></i> Clientes
+                </button>
+                <button onclick="switchTab('mensalidades')" id="nav-mensalidades" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 text-blue-200 hover:bg-blue-900 hover:text-white">
+                    <i class="fa-solid fa-file-invoice-dollar"></i> Mensalidades
+                </button>
+                <button onclick="switchTab('inadimplencia')" id="nav-inadimplencia" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 text-blue-200 hover:bg-blue-900 hover:text-white">
+                    <i class="fa-solid fa-triangle-exclamation text-red-400"></i> Inadimplência
+                    <span id="badgeInadCount" class="bg-afisco-red text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">0</span>
+                </button>
+                <button onclick="switchTab('analise')" id="nav-analise" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 text-blue-200 hover:bg-blue-900 hover:text-white">
+                    <i class="fa-solid fa-chart-line"></i> Análise Mensal
+                </button>
+                <button onclick="switchTab('ficha')" id="nav-ficha" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 text-blue-200 hover:bg-blue-900 hover:text-white">
+                    <i class="fa-solid fa-id-card"></i> Ficha do Cliente
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
+
+        <!-- ================= 1. TAB: DASHBOARD PRINCIPAL ================= -->
+        <div id="tab-dashboard" class="tab-content space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-afisco-border">
+                <div>
+                    <h2 class="text-xl font-bold text-afisco-blue flex items-center gap-2">
+                        <i class="fa-solid fa-gauge-high text-afisco-red"></i> Visão Geral Financeira
+                    </h2>
+                    <p class="text-xs text-afisco-textMuted mt-1" id="dashSubtitle">Resumo consolidado para o período selecionado.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="switchTab('mensalidades')" class="bg-afisco-blue hover:bg-blue-800 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition shadow flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> Registrar Pagamento
+                    </button>
+                </div>
+            </div>
+
+            <!-- KPI Cards Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-afisco-border flex flex-col justify-between relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-2 h-full bg-blue-500"></div>
+                    <div>
+                        <div class="flex justify-between items-center text-afisco-textMuted text-xs font-semibold uppercase tracking-wider">
+                            <span>Faturamento Previsto</span>
+                            <i class="fa-solid fa-file-invoice text-blue-500 text-base"></i>
+                        </div>
+                        <div class="text-2xl font-bold text-afisco-blue mt-3" id="kpiPrevisto">R$ 0,00</div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-afisco-textMuted">
+                        <span>Total contratado no mês</span>
+                        <span class="font-medium text-slate-700" id="kpiClientesAtivosCount">0 clientes ativos</span>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-afisco-border flex flex-col justify-between relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-2 h-full bg-emerald-500"></div>
+                    <div>
+                        <div class="flex justify-between items-center text-afisco-textMuted text-xs font-semibold uppercase tracking-wider">
+                            <span>Total Recebido</span>
+                            <i class="fa-solid fa-circle-check text-emerald-500 text-base"></i>
+                        </div>
+                        <div class="text-2xl font-bold text-emerald-600 mt-3" id="kpiRecebido">R$ 0,00</div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-afisco-textMuted">
+                        <span>Taxa de recebimento</span>
+                        <span class="font-bold text-emerald-600" id="kpiTaxaRecebimento">0%</span>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-afisco-border flex flex-col justify-between relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-2 h-full bg-amber-500"></div>
+                    <div>
+                        <div class="flex justify-between items-center text-afisco-textMuted text-xs font-semibold uppercase tracking-wider">
+                            <span>Total em Aberto</span>
+                            <i class="fa-solid fa-clock text-amber-500 text-base"></i>
+                        </div>
+                        <div class="text-2xl font-bold text-amber-600 mt-3" id="kpiEmAberto">R$ 0,00</div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-afisco-textMuted">
+                        <span>A vencer no mês</span>
+                        <span class="font-medium text-slate-700" id="kpiQtdEmAberto">0 títulos</span>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-afisco-border flex flex-col justify-between relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-2 h-full bg-afisco-red"></div>
+                    <div>
+                        <div class="flex justify-between items-center text-afisco-textMuted text-xs font-semibold uppercase tracking-wider">
+                            <span>Total Inadimplente</span>
+                            <i class="fa-solid fa-triangle-exclamation text-afisco-red text-base"></i>
+                        </div>
+                        <div class="text-2xl font-bold text-afisco-red mt-3" id="kpiInadimplencia">R$ 0,00</div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-afisco-textMuted">
+                        <span>Clientes em atraso</span>
+                        <span class="font-bold text-afisco-red" id="kpiClientesInadimplentesCount">0 clientes</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-afisco-border lg:col-span-2 flex flex-col justify-between">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-afisco-blue text-base flex items-center gap-2">
+                            <i class="fa-solid fa-chart-column text-afisco-red"></i> Comparativo Financeiro do Mês
+                        </h3>
+                        <span class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg font-medium" id="lblCurrentMonthYear">Mês Atual</span>
+                    </div>
+                    <div class="relative h-72 w-full">
+                        <canvas id="dashBarChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-afisco-border flex flex-col justify-between">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-afisco-blue text-base flex items-center gap-2">
+                            <i class="fa-solid fa-chart-pie text-afisco-blue"></i> Status das Cobranças
+                        </h3>
+                    </div>
+                    <div class="relative h-64 w-full flex items-center justify-center">
+                        <canvas id="dashDoughnutChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= 2. TAB: CADASTRO DE CLIENTES ================= -->
+        <div id="tab-clients" class="tab-content space-y-6 hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-afisco-border">
+                <div>
+                    <h2 class="text-xl font-bold text-afisco-blue flex items-center gap-2">
+                        <i class="fa-solid fa-users text-afisco-red"></i> Cadastro de Clientes
+                    </h2>
+                    <p class="text-xs text-afisco-textMuted mt-1">Gerencie a carteira de clientes e o responsável/funcionário vinculado.</p>
+                </div>
+                <button onclick="openClientModal('new')" class="bg-afisco-red hover:bg-afisco-darkRed text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition shadow flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus"></i> Novo Cliente
+                </button>
+            </div>
+
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-afisco-border flex flex-col sm:flex-row gap-4 justify-between items-center">
+                <div class="relative w-full sm:w-96">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <i class="fa-solid fa-search"></i>
+                    </span>
+                    <input type="text" id="clientSearchInput" onkeyup="renderClientsTable()" placeholder="Pesquisar por nome, CNPJ ou responsável..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                </div>
+                <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <select id="clientStatusFilter" onchange="renderClientsTable()" class="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium px-3 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                        <option value="todos">Todos os Status</option>
+                        <option value="ativo" selected>Ativos</option>
+                        <option value="inativo">Inativos</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-afisco-border overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-600 text-xs uppercase font-semibold border-b border-slate-200">
+                                <th class="p-4">Empresa / Cliente</th>
+                                <th class="p-4">CNPJ</th>
+                                <th class="p-4">Responsável / Funcionário</th>
+                                <th class="p-4">Mensalidade</th>
+                                <th class="p-4">Vencimento</th>
+                                <th class="p-4">Status</th>
+                                <th class="p-4 text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clientsTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= 3. TAB: CONTROLE DAS MENSALIDADES ================= -->
+        <div id="tab-mensalidades" class="tab-content space-y-6 hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-afisco-border">
+                <div>
+                    <h2 class="text-xl font-bold text-afisco-blue flex items-center gap-2">
+                        <i class="fa-solid fa-file-invoice-dollar text-afisco-red"></i> Controle de Mensalidades
+                    </h2>
+                    <p class="text-xs text-afisco-textMuted mt-1">Registre pagamentos, valores pagos e datas.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="generateMonthlyBilling()" class="bg-afisco-blue hover:bg-blue-800 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition shadow flex items-center gap-2">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Gerar Faturamento do Mês
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-afisco-border grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+                <div class="relative">
+                    <input type="text" id="billingSearchInput" onkeyup="renderMensalidadesTable()" placeholder="Filtrar por nome do cliente..." class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                </div>
+                <div>
+                    <select id="billingStatusFilter" onchange="renderMensalidadesTable()" class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium px-3 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                        <option value="todos">Todos os Status de Pagamento</option>
+                        <option value="Em aberto">Em aberto</option>
+                        <option value="Pago">Pago</option>
+                        <option value="Vencido">Vencido</option>
+                        <option value="Parcial">Parcial</option>
+                    </select>
+                </div>
+                <div class="flex justify-end">
+                    <span class="text-xs text-slate-500 font-medium self-center" id="billingCountLabel">Mostrando 0 mensalidades</span>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-afisco-border overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-600 text-xs uppercase font-semibold border-b border-slate-200">
+                                <th class="p-4">Cliente</th>
+                                <th class="p-4">Responsável</th>
+                                <th class="p-4">Mês Ref.</th>
+                                <th class="p-4">Previsto</th>
+                                <th class="p-4">Vencimento</th>
+                                <th class="p-4">Data Pgto</th>
+                                <th class="p-4">Valor Pago</th>
+                                <th class="p-4">Status</th>
+                                <th class="p-4 text-right">Ação / Editar</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mensalidadesTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= 4. TAB: PAINEL DE INADIMPLÊNCIA ================= -->
+        <div id="tab-inadimplencia" class="tab-content space-y-6 hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-afisco-border">
+                <div>
+                    <h2 class="text-xl font-bold text-afisco-blue flex items-center gap-2">
+                        <i class="fa-solid fa-triangle-exclamation text-afisco-red"></i> Painel de Inadimplência
+                    </h2>
+                    <p class="text-xs text-afisco-textMuted mt-1">Clientes com mensalidades vencidas ordenados pelo maior valor devido.</p>
+                </div>
+                <div class="bg-red-50 border border-red-200 px-4 py-2 rounded-xl flex items-center gap-3">
+                    <i class="fa-solid fa-triangle-exclamation text-afisco-red text-lg"></i>
+                    <div>
+                        <div class="text-[10px] uppercase font-bold text-afisco-red tracking-wider">Total Inadimplente</div>
+                        <div class="text-lg font-bold text-afisco-red" id="inadTotalDevido">R$ 0,00</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-afisco-border overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-red-50/50 text-red-900 text-xs uppercase font-semibold border-b border-red-100">
+                                <th class="p-4">Cliente / CNPJ</th>
+                                <th class="p-4">Responsável</th>
+                                <th class="p-4">Mensalidades Vencidas</th>
+                                <th class="p-4">Valor Total Devido</th>
+                                <th class="p-4">Mais Antiga em Aberto</th>
+                                <th class="p-4 text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inadimplenciaTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= 5. TAB: ANÁLISE MENSAL ================= -->
+        <div id="tab-analise" class="tab-content space-y-6 hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-afisco-border">
+                <div>
+                    <h2 class="text-xl font-bold text-afisco-blue flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line text-afisco-red"></i> Análise Mensal e Evolução
+                    </h2>
+                    <p class="text-xs text-afisco-textMuted mt-1">Compare o desempenho financeiro de todos os meses do ano.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-afisco-border">
+                    <h3 class="font-bold text-afisco-blue text-sm mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-arrow-trend-up text-blue-600"></i> Evolução Faturamento Previsto vs Recebido
+                    </h3>
+                    <div class="relative h-72 w-full">
+                        <canvas id="analiseLineChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-afisco-border">
+                    <h3 class="font-bold text-afisco-blue text-sm mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-percent text-afisco-red"></i> Evolução da Inadimplência Mensal (%)
+                    </h3>
+                    <div class="relative h-72 w-full">
+                        <canvas id="analiseInadChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-afisco-border overflow-hidden">
+                <div class="p-4 bg-slate-50 border-b border-slate-200 font-bold text-afisco-blue text-sm">
+                    Demonstrativo Consolidado por Mês (<span id="lblAnoAnalise">2026</span>)
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50/50 text-slate-600 text-xs uppercase font-semibold border-b border-slate-200">
+                                <th class="p-4">Mês</th>
+                                <th class="p-4">Previsto</th>
+                                <th class="p-4">Recebido</th>
+                                <th class="p-4">Em Aberto</th>
+                                <th class="p-4">% Recebido</th>
+                                <th class="p-4">% Inadimplência</th>
+                                <th class="p-4">Diferença (Prev. x Rec.)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="analiseTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= 6. TAB: FICHA DO CLIENTE ================= -->
+        <div id="tab-ficha" class="tab-content space-y-6 hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-afisco-border">
+                <div>
+                    <h2 class="text-xl font-bold text-afisco-blue flex items-center gap-2">
+                        <i class="fa-solid fa-id-card text-afisco-red"></i> Ficha Individual do Cliente
+                    </h2>
+                    <p class="text-xs text-afisco-textMuted mt-1">Histórico financeiro completo e situação detalhada.</p>
+                </div>
+                <div class="w-full sm:w-72">
+                    <select id="fichaClientSelect" onchange="renderClientFicha()" class="w-full bg-slate-50 border border-slate-200 text-afisco-blue font-semibold text-sm px-4 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-afisco-blue"></select>
+                </div>
+            </div>
+
+            <div id="fichaContentContainer" class="space-y-6"></div>
+        </div>
+
+    </main>
+
+    <!-- Modal de Cadastro / Edição de Cliente -->
+    <div id="clientModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-4">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 id="clientModalTitle" class="font-bold text-afisco-blue text-lg">Novo Cliente</h3>
+                <button onclick="closeClientModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <input type="hidden" id="modalClientId">
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Nome da Empresa / Cliente</label>
+                    <input type="text" id="modalClientName" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">CNPJ</label>
+                        <input type="text" id="modalClientCnpj" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Responsável / Funcionário</label>
+                        <input type="text" id="modalClientResponsible" placeholder="Ex: Harrisson / Nome" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Valor da Mensalidade (R$)</label>
+                        <input type="number" step="0.01" id="modalClientValue" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Dia Vencimento</label>
+                        <input type="number" min="1" max="31" id="modalClientDueDay" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Início Contrato</label>
+                        <input type="date" id="modalClientStart" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Status</label>
+                        <select id="modalClientStatus" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                            <option value="ativo">Ativo</option>
+                            <option value="inativo">Inativo</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-3 border-t">
+                <button onclick="closeClientModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">Cancelar</button>
+                <button onclick="saveClientFromModal()" class="px-4 py-2 bg-afisco-blue hover:bg-blue-800 text-white text-xs font-semibold rounded-xl transition">Salvar Cliente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Registro / Edição de Mensalidade -->
+    <div id="mensalidadeModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="font-bold text-afisco-blue text-lg">Atualizar Mensalidade</h3>
+                <button onclick="closeMensalidadeModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <input type="hidden" id="modalMensalidadeId">
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Cliente / Mês Ref.</label>
+                    <input type="text" id="modalMensalidadeInfo" disabled class="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-sm text-slate-600">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Valor Previsto (R$)</label>
+                        <input type="number" step="0.01" id="modalMensalidadePrevisto" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Valor Pago (R$)</label>
+                        <input type="number" step="0.01" id="modalMensalidadePago" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Data de Pagamento</label>
+                        <input type="date" id="modalMensalidadeDataPgto" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Status</label>
+                        <select id="modalMensalidadeStatus" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                            <option value="Em aberto">Em aberto</option>
+                            <option value="Pago">Pago</option>
+                            <option value="Vencido">Vencido</option>
+                            <option value="Parcial">Parcial</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-3 border-t">
+                <button onclick="closeMensalidadeModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">Cancelar</button>
+                <button onclick="saveMensalidadeFromModal()" class="px-4 py-2 bg-afisco-blue hover:bg-blue-800 text-white text-xs font-semibold rounded-xl transition">Salvar Pagamento</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação de Exclusão de Cliente -->
+    <div id="deleteClientModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-4 text-center">
+            <div class="w-12 h-12 rounded-full bg-red-100 text-afisco-red flex items-center justify-center mx-auto text-xl">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-afisco-blue text-lg">Excluir Cliente</h3>
+                <p class="text-xs text-slate-500 mt-1">Tem certeza que deseja excluir o cliente <span id="deleteClientNameLabel" class="font-bold text-slate-700"></span>? Esta ação também removerá todas as mensalidades vinculadas.</p>
+            </div>
+            <input type="hidden" id="deleteClientId">
+            <div class="flex justify-center gap-2 pt-2">
+                <button onclick="closeDeleteClientModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">Cancelar</button>
+                <button onclick="confirmDeleteClient()" class="px-4 py-2 bg-afisco-red hover:bg-afisco-darkRed text-white text-xs font-semibold rounded-xl transition">Sim, Excluir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application JavaScript Code -->
+    <script>
+        const mesesNomes = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+        let dashBarChartObj = null;
+        let dashDoughnutChartObj = null;
+        let analiseLineChartObj = null;
+        let analiseInadChartObj = null;
+
+        function initApp() {
+            renderDashboard();
+            renderClientsTable();
+            renderMensalidadesTable();
+            renderInadimplenciaTable();
+            renderAnaliseTab();
+            populateFichaSelect();
+        }
+
+        function handleGlobalFilterChange() {
+            renderDashboard();
+            renderMensalidadesTable();
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.className = "tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 text-blue-200 hover:bg-blue-900 hover:text-white";
+            });
+            const activeBtn = document.getElementById('nav-' + tabId);
+            if(activeBtn) {
+                activeBtn.className = "tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 bg-afisco-blue text-white shadow";
+            }
+
+            if(tabId === 'dashboard') renderDashboard();
+            if(tabId === 'clients') renderClientsTable();
+            if(tabId === 'mensalidades') renderMensalidadesTable();
+            if(tabId === 'inadimplencia') renderInadimplenciaTable();
+            if(tabId === 'analise') renderAnaliseTab();
+            if(tabId === 'ficha') renderClientFicha();
+        }
+
+        function getSelectedPeriod() {
+            const m = parseInt(document.getElementById('globalMonth').value);
+            const y = parseInt(document.getElementById('globalYear').value);
+            return { month: m, year: y };
+        }
+
+        function formatCurrency(val) {
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+        }
+
+        // ================= DASHBOARD LOGIC =================
+        function renderDashboard() {
+            const { month, year } = getSelectedPeriod();
+            document.getElementById('dashSubtitle').innerText = `Resumo consolidado para ${mesesNomes[month]} de ${year}.`;
+            document.getElementById('lblCurrentMonthYear').innerText = `${mesesNomes[month]} / ${year}`;
+
+            const activeClients = clientesData.filter(c => c.status === 'ativo');
+            const mensPeriod = mensalidadesData.filter(m => m.month === month && m.year === year);
+
+            let previsto = 0;
+            let recebido = 0;
+            let emAberto = 0;
+            let inadimplente = 0;
+            let qtdEmAberto = 0;
+            let clientesInadCount = new Set();
+
+            mensPeriod.forEach(item => {
+                previsto += item.previsto;
+                if(item.status === 'Pago') {
+                    recebido += item.paidValue;
+                } else if(item.status === 'Em aberto' || item.status === 'Parcial') {
+                    emAberto += (item.previsto - item.paidValue);
+                    qtdEmAberto++;
+                } else if(item.status === 'Vencido') {
+                    inadimplente += (item.previsto - item.paidValue);
+                    clientesInadCount.add(item.clientId);
+                }
+            });
+
+            const taxaRec = previsto > 0 ? (recebido / previsto) * 100 : 0;
+
+            document.getElementById('kpiPrevisto').innerText = formatCurrency(previsto);
+            document.getElementById('kpiRecebido').innerText = formatCurrency(recebido);
+            document.getElementById('kpiTaxaRecebimento').innerText = taxaRec.toFixed(1) + '%';
+            document.getElementById('kpiEmAberto').innerText = formatCurrency(emAberto);
+            document.getElementById('kpiQtdEmAberto').innerText = `${qtdEmAberto} títulos`;
+            document.getElementById('kpiInadimplencia').innerText = formatCurrency(inadimplente);
+            document.getElementById('kpiClientesInadimplentesCount').innerText = `${clientesInadCount.size} clientes`;
+            document.getElementById('kpiClientesAtivosCount').innerText = `${activeClients.length} clientes ativos`;
+            document.getElementById('badgeInadCount').innerText = clientesInadCount.size;
+
+            renderCharts(previsto, recebido, emAberto, inadimplente);
+        }
+
+        function renderCharts(prev, rec, aberto, inad) {
+            const ctxBar = document.getElementById('dashBarChart').getContext('2d');
+            if(dashBarChartObj) dashBarChartObj.destroy();
+            dashBarChartObj = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: ['Previsto', 'Recebido', 'Em Aberto', 'Inadimplente'],
+                    datasets: [{
+                        data: [prev, rec, aberto, inad],
+                        backgroundColor: ['#1d4ed8', '#10b981', '#f59e0b', '#e11d48'],
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            const ctxDoughnut = document.getElementById('dashDoughnutChart').getContext('2d');
+            if(dashDoughnutChartObj) dashDoughnutChartObj.destroy();
+            dashDoughnutChartObj = new Chart(ctxDoughnut, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Recebido', 'Em Aberto', 'Inadimplente'],
+                    datasets: [{
+                        data: [rec, aberto, inad],
+                        backgroundColor: ['#10b981', '#f59e0b', '#e11d48']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } }
+                }
+            });
+        }
+
+        // ================= CLIENTES LOGIC =================
+        function renderClientsTable() {
+            const search = document.getElementById('clientSearchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('clientStatusFilter').value;
+            const tbody = document.getElementById('clientsTableBody');
+            tbody.innerHTML = '';
+
+            const filtered = clientesData.filter(c => {
+                const matchSearch = c.name.toLowerCase().includes(search) || c.cnpj.includes(search) || c.responsible.toLowerCase().includes(search);
+                const matchStatus = statusFilter === 'todos' || c.status === statusFilter;
+                return matchSearch && matchStatus;
+            });
+
+            if(filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">Nenhum cliente encontrado.</td></tr>`;
+                return;
+            }
+
+            filtered.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50/80 transition";
+                tr.innerHTML = `
+                    <td class="p-4 font-semibold text-afisco-blue">${c.name}</td>
+                    <td class="p-4 text-slate-600">${c.cnpj}</td>
+                    <td class="p-4 text-slate-700 font-medium"><span class="bg-blue-50 text-blue-800 text-xs px-2.5 py-1 rounded-lg">${c.responsible}</span></td>
+                    <td class="p-4 font-bold text-slate-800">${formatCurrency(c.value)}</td>
+                    <td class="p-4 text-slate-600">Dia ${c.dueDay}</td>
+                    <td class="p-4">
+                        <span class="px-2.5 py-1 rounded-full text-xs font-bold ${c.status === 'ativo' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'}">
+                            ${c.status.toUpperCase()}
+                        </span>
+                    </td>
+                    <td class="p-4 text-right space-x-2">
+                        <button onclick="openClientModal('edit', ${c.id})" class="text-blue-600 hover:text-blue-800 text-xs font-semibold px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 transition"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="openDeleteClientModal(${c.id})" class="text-red-600 hover:text-red-800 text-xs font-semibold px-2 py-1 rounded bg-red-50 hover:bg-red-100 transition"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openClientModal(mode, id = null) {
+            document.getElementById('clientModal').classList.remove('hidden');
+            if(mode === 'new') {
+                document.getElementById('clientModalTitle').innerText = "Novo Cliente";
+                document.getElementById('modalClientId').value = "";
+                document.getElementById('modalClientName').value = "";
+                document.getElementById('modalClientCnpj').value = "";
+                document.getElementById('modalClientResponsible').value = "";
+                document.getElementById('modalClientValue').value = "";
+                document.getElementById('modalClientDueDay').value = "10";
+                document.getElementById('modalClientStart').value = new Date().toISOString().split('T')[0];
+                document.getElementById('modalClientStatus').value = "ativo";
+            } else {
+                document.getElementById('clientModalTitle').innerText = "Editar Cliente";
+                const c = clientesData.find(item => item.id === id);
+                if(c) {
+                    document.getElementById('modalClientId').value = c.id;
+                    document.getElementById('modalClientName').value = c.name;
+                    document.getElementById('modalClientCnpj').value = c.cnpj;
+                    document.getElementById('modalClientResponsible').value = c.responsible;
+                    document.getElementById('modalClientValue').value = c.value;
+                    document.getElementById('modalClientDueDay').value = c.dueDay;
+                    document.getElementById('modalClientStart').value = c.start;
+                    document.getElementById('modalClientStatus').value = c.status;
+                }
+            }
+        }
+
+        function closeClientModal() {
+            document.getElementById('clientModal').classList.add('hidden');
+        }
+
+        function saveClientFromModal() {
+            const id = document.getElementById('modalClientId').value;
+            const name = document.getElementById('modalClientName').value;
+            const cnpj = document.getElementById('modalClientCnpj').value;
+            const responsible = document.getElementById('modalClientResponsible').value;
+            const value = parseFloat(document.getElementById('modalClientValue').value) || 0;
+            const dueDay = parseInt(document.getElementById('modalClientDueDay').value) || 10;
+            const start = document.getElementById('modalClientStart').value;
+            const status = document.getElementById('modalClientStatus').value;
+
+            if(!name) {
+                alert('Por favor, informe o nome do cliente.');
+                return;
+            }
+
+            if(id === "") {
+                const newId = clientesData.length > 0 ? Math.max(...clientesData.map(c => c.id)) + 1 : 1;
+                clientesData.push({ id: newId, name, cnpj, responsible, value, dueDay, start, status });
+            } else {
+                const c = clientesData.find(item => item.id == id);
+                if(c) {
+                    c.name = name;
+                    c.cnpj = cnpj;
+                    c.responsible = responsible;
+                    c.value = value;
+                    c.dueDay = dueDay;
+                    c.start = start;
+                    c.status = status;
+                }
+            }
+
+            closeClientModal();
+            renderClientsTable();
+            populateFichaSelect();
+            renderDashboard();
+        }
+
+        function openDeleteClientModal(id) {
+            const c = clientesData.find(item => item.id === id);
+            if(c) {
+                document.getElementById('deleteClientId').value = c.id;
+                document.getElementById('deleteClientNameLabel').innerText = c.name;
+                document.getElementById('deleteClientModal').classList.remove('hidden');
+            }
+        }
+
+        function closeDeleteClientModal() {
+            document.getElementById('deleteClientModal').classList.add('hidden');
+        }
+
+        function confirmDeleteClient() {
+            const id = parseInt(document.getElementById('deleteClientId').value);
+            
+            clientesData = clientesData.filter(c => c.id !== id);
+            mensalidadesData = mensalidadesData.filter(m => m.clientId !== id);
+
+            closeDeleteClientModal();
+            renderClientsTable();
+            renderMensalidadesTable();
+            renderInadimplenciaTable();
+            populateFichaSelect();
+            renderDashboard();
+        }
+
+        // ================= MENSALIDADES LOGIC =================
+        function renderMensalidadesTable() {
+            const { month, year } = getSelectedPeriod();
+            const search = document.getElementById('billingSearchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('billingStatusFilter').value;
+            const tbody = document.getElementById('mensalidadesTableBody');
+            tbody.innerHTML = '';
+
+            const list = mensalidadesData.filter(m => m.month === month && m.year === year);
+            
+            const filtered = list.filter(item => {
+                const cli = clientesData.find(c => c.id === item.clientId);
+                if(!cli) return false;
+                const matchName = cli.name.toLowerCase().includes(search);
+                const matchStatus = statusFilter === 'todos' || item.status === statusFilter;
+                return matchName && matchStatus;
+            });
+
+            document.getElementById('billingCountLabel').innerText = `Mostrando ${filtered.length} mensalidades`;
+
+            if(filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-slate-400">Nenhuma mensalidade encontrada para este período. Clique em "Gerar Faturamento do Mês".</td></tr>`;
+                return;
+            }
+
+            filtered.forEach(item => {
+                const cli = clientesData.find(c => c.id === item.clientId);
+                if(!cli) return;
+
+                let statusBadge = "";
+                if(item.status === 'Pago') statusBadge = "bg-emerald-100 text-emerald-800";
+                else if(item.status === 'Vencido') statusBadge = "bg-red-100 text-afisco-red font-bold";
+                else if(item.status === 'Parcial') statusBadge = "bg-amber-100 text-amber-800";
+                else statusBadge = "bg-slate-100 text-slate-700";
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50/80 transition";
+                tr.innerHTML = `
+                    <td class="p-4 font-semibold text-afisco-blue">${cli.name}</td>
+                    <td class="p-4 text-slate-600">${cli.responsible}</td>
+                    <td class="p-4 text-slate-600">${mesesNomes[item.month]}</td>
+                    <td class="p-4 font-bold text-slate-800">${formatCurrency(item.previsto)}</td>
+                    <td class="p-4 text-slate-600">${item.due}</td>
+                    <td class="p-4 text-slate-600">${item.paidDate || '-'}</td>
+                    <td class="p-4 font-bold text-emerald-600">${formatCurrency(item.paidValue)}</td>
+                    <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge}">${item.status}</span></td>
+                    <td class="p-4 text-right">
+                        <button onclick="openMensalidadeModal(${item.id})" class="text-blue-600 hover:text-blue-800 text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 transition flex items-center gap-1 ml-auto"><i class="fa-solid fa-pen-to-square"></i> Editar</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function generateMonthlyBilling() {
+            const { month, year } = getSelectedPeriod();
+            const activeClients = clientesData.filter(c => c.status === 'ativo');
+            let addedCount = 0;
+
+            activeClients.forEach(cli => {
+                const exists = mensalidadesData.find(m => m.clientId === cli.id && m.month === month && m.year === year);
+                if(!exists) {
+                    const newId = mensalidadesData.length > 0 ? Math.max(...mensalidadesData.map(m => m.id)) + 1 : 1;
+                    const dueDateStr = `${year}-${String(month).padStart(2, '0')}-${String(cli.dueDay).padStart(2, '0')}`;
+                    mensalidadesData.push({
+                        id: newId,
+                        clientId: cli.id,
+                        month: month,
+                        year: year,
+                        previsto: cli.value,
+                        due: dueDateStr,
+                        paidDate: "",
+                        paidValue: 0,
+                        status: "Em aberto"
+                    });
+                    addedCount++;
+                }
+            });
+
+            alert(`Faturamento gerado com sucesso! ${addedCount} novas mensalidades adicionadas para ${mesesNomes[month]}/${year}.`);
+            renderMensalidadesTable();
+            renderDashboard();
+        }
+
+        function openMensalidadeModal(id) {
+            const item = mensalidadesData.find(m => m.id === id);
+            if(!item) return;
+            const cli = clientesData.find(c => c.id === item.clientId);
+
+            document.getElementById('modalMensalidadeId').value = item.id;
+            document.getElementById('modalMensalidadeInfo').value = `${cli ? cli.name : 'Cliente'} (${mesesNomes[item.month]}/${item.year})`;
+            document.getElementById('modalMensalidadePrevisto').value = item.previsto;
+            document.getElementById('modalMensalidadePago').value = item.paidValue || item.previsto;
+            document.getElementById('modalMensalidadeDataPgto').value = item.paidDate || new Date().toISOString().split('T')[0];
+            document.getElementById('modalMensalidadeStatus').value = item.status;
+
+            document.getElementById('mensalidadeModal').classList.remove('hidden');
+        }
+
+        function closeMensalidadeModal() {
+            document.getElementById('mensalidadeModal').classList.add('hidden');
+        }
+
+        function saveMensalidadeFromModal() {
+            const id = parseInt(document.getElementById('modalMensalidadeId').value);
+            const previsto = parseFloat(document.getElementById('modalMensalidadePrevisto').value) || 0;
+            const paidValue = parseFloat(document.getElementById('modalMensalidadePago').value) || 0;
+            const paidDate = document.getElementById('modalMensalidadeDataPgto').value;
+            const status = document.getElementById('modalMensalidadeStatus').value;
+
+            const item = mensalidadesData.find(m => m.id === id);
+            if(item) {
+                item.previsto = previsto;
+                item.paidValue = paidValue;
+                item.paidDate = paidDate;
+                item.status = status;
+            }
+
+            closeMensalidadeModal();
+            renderMensalidadesTable();
+            renderDashboard();
+            renderInadimplenciaTable();
+        }
+
+        // ================= INADIMPLÊNCIA LOGIC =================
+        function renderInadimplenciaTable() {
+            const tbody = document.getElementById('inadimplenciaTableBody');
+            tbody.innerHTML = '';
+
+            const inadMap = {};
+
+            mensalidadesData.forEach(item => {
+                if(item.status === 'Vencido') {
+                    if(!inadMap[item.clientId]) {
+                        inadMap[item.clientId] = { count: 0, totalDevido: 0, oldestDate: item.due };
+                    }
+                    inadMap[item.clientId].count++;
+                    inadMap[item.clientId].totalDevido += (item.previsto - item.paidValue);
+                    if(item.due < inadMap[item.clientId].oldestDate) {
+                        inadMap[item.clientId].oldestDate = item.due;
+                    }
+                }
+            });
+
+            const inadList = Object.keys(inadMap).map(clientId => {
+                return {
+                    clientId: parseInt(clientId),
+                    ...inadMap[clientId]
+                };
+            }).sort((a, b) => b.totalDevido - a.totalDevido);
+
+            let totalGeralDevido = 0;
+            inadList.forEach(item => totalGeralDevido += item.totalDevido);
+            document.getElementById('inadTotalDevido').innerText = formatCurrency(totalGeralDevido);
+
+            if(inadList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">Nenhum cliente inadimplente no momento. Excelente!</td></tr>`;
+                return;
+            }
+
+            inadList.forEach(item => {
+                const cli = clientesData.find(c => c.id === item.clientId);
+                if(!cli) return;
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-red-50/40 transition";
+                tr.innerHTML = `
+                    <td class="p-4 font-semibold text-afisco-blue">${cli.name}<br><span class="text-xs text-slate-400 font-normal">${cli.cnpj}</span></td>
+                    <td class="p-4 text-slate-700">${cli.responsible}</td>
+                    <td class="p-4 font-bold text-afisco-red">${item.count} título(s)</td>
+                    <td class="p-4 font-bold text-afisco-red text-base">${formatCurrency(item.totalDevido)}</td>
+                    <td class="p-4 text-slate-600">${item.oldestDate}</td>
+                    <td class="p-4 text-right">
+                        <button onclick="goToClientFicha(${cli.id})" class="text-blue-600 hover:text-blue-800 text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 transition"><i class="fa-solid fa-eye"></i> Ver Ficha</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function goToClientFicha(clientId) {
+            switchTab('ficha');
+            document.getElementById('fichaClientSelect').value = clientId;
+            renderClientFicha();
+        }
+
+        // ================= ANÁLISE MENSAL LOGIC =================
+        function renderAnaliseTab() {
+            const year = parseInt(document.getElementById('globalYear').value);
+            document.getElementById('lblAnoAnalise').innerText = year;
+
+            const mesesArr = [1,2,3,4,5,6,7,8,9,10,11,12];
+            const prevArr = [];
+            const recArr = [];
+            const inadPctArr = [];
+            const tbody = document.getElementById('analiseTableBody');
+            tbody.innerHTML = '';
+
+            mesesArr.forEach(m => {
+                const list = mensalidadesData.filter(item => item.month === m && item.year === year);
+                let prev = 0, rec = 0, aberto = 0, inad = 0;
+                list.forEach(i => {
+                    prev += i.previsto;
+                    if(i.status === 'Pago') rec += i.paidValue;
+                    if(i.status === 'Em aberto' || i.status === 'Parcial') aberto += (i.previsto - i.paidValue);
+                    if(i.status === 'Vencido') inad += (i.previsto - i.paidValue);
+                });
+
+                const pctRec = prev > 0 ? (rec / prev) * 100 : 0;
+                const pctInad = prev > 0 ? (inad / prev) * 100 : 0;
+                const diff = rec - prev;
+
+                prevArr.push(prev);
+                recArr.push(rec);
+                inadPctArr.push(pctInad);
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition";
+                tr.innerHTML = `
+                    <td class="p-4 font-semibold text-afisco-blue">${mesesNomes[m]}</td>
+                    <td class="p-4 font-bold text-slate-800">${formatCurrency(prev)}</td>
+                    <td class="p-4 font-bold text-emerald-600">${formatCurrency(rec)}</td>
+                    <td class="p-4 font-medium text-amber-600">${formatCurrency(aberto)}</td>
+                    <td class="p-4 font-bold text-blue-600">${pctRec.toFixed(1)}%</td>
+                    <td class="p-4 font-bold text-afisco-red">${pctInad.toFixed(1)}%</td>
+                    <td class="p-4 font-semibold ${diff >= 0 ? 'text-emerald-600' : 'text-afisco-red'}">${formatCurrency(diff)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            const ctxLine = document.getElementById('analiseLineChart').getContext('2d');
+            if(analiseLineChartObj) analiseLineChartObj.destroy();
+            analiseLineChartObj = new Chart(ctxLine, {
+                type: 'line',
+                data: {
+                    labels: mesesNomes.slice(1),
+                    datasets: [
+                        { label: 'Previsto', data: prevArr, borderColor: '#1d4ed8', backgroundColor: '#1d4ed8', tension: 0.2 },
+                        { label: 'Recebido', data: recArr, borderColor: '#10b981', backgroundColor: '#10b981', tension: 0.2 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            const ctxInad = document.getElementById('analiseInadChart').getContext('2d');
+            if(analiseInadChartObj) analiseInadChartObj.destroy();
+            analiseInadChartObj = new Chart(ctxInad, {
+                type: 'line',
+                data: {
+                    labels: mesesNomes.slice(1),
+                    datasets: [{ label: '% Inadimplência', data: inadPctArr, borderColor: '#e11d48', backgroundColor: '#e11d48', tension: 0.2, fill: true }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        // ================= FICHA DO CLIENTE LOGIC =================
+        function populateFichaSelect() {
+            const select = document.getElementById('fichaClientSelect');
+            select.innerHTML = '';
+            clientesData.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.innerText = c.name;
+                select.appendChild(opt);
+            });
+        }
+
+        function renderClientFicha() {
+            const selectId = parseInt(document.getElementById('fichaClientSelect').value);
+            const container = document.getElementById('fichaContentContainer');
+            container.innerHTML = '';
+
+            const cli = clientesData.find(c => c.id === selectId);
+            if(!cli) {
+                container.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-sm border border-afisco-border text-center text-slate-400">Selecione um cliente acima.</div>`;
+                return;
+            }
+
+            const cliMensalidades = mensalidadesData.filter(m => m.clientId === cli.id);
+            let totalPagoCli = 0;
+            let totalDevendoCli = 0;
+
+            cliMensalidades.forEach(m => {
+                if(m.status === 'Pago') totalPagoCli += m.paidValue;
+                if(m.status === 'Vencido' || m.status === 'Em aberto' || m.status === 'Parcial') {
+                    totalDevendoCli += (m.previsto - m.paidValue);
+                }
+            });
+
+            let historyRows = '';
+            if(cliMensalidades.length === 0) {
+                historyRows = `<tr><td colspan="6" class="p-6 text-center text-slate-400">Nenhum histórico de mensalidade registrado para este cliente.</td></tr>`;
+            } else {
+                cliMensalidades.sort((a,b) => b.year - a.year || b.month - a.month).forEach(m => {
+                    historyRows += `
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="p-3 font-medium">${mesesNomes[m.month]} / ${m.year}</td>
+                            <td class="p-3">${formatCurrency(m.previsto)}</td>
+                            <td class="p-3">${m.due}</td>
+                            <td class="p-3">${m.paidDate || '-'}</td>
+                            <td class="p-3 font-semibold text-emerald-600">${formatCurrency(m.paidValue)}</td>
+                            <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-semibold ${m.status === 'Pago' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-afisco-red'}">${m.status}</span></td>
+                        </tr>
+                    `;
+                });
+            }
+
+            container.innerHTML = `
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-afisco-border grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <div>
+                        <div class="text-xs uppercase font-bold text-slate-400 tracking-wider">Dados Cadastrais</div>
+                        <h3 class="text-lg font-bold text-afisco-blue mt-1">${cli.name}</h3>
+                        <p class="text-xs text-slate-600 mt-0.5">CNPJ: ${cli.cnpj}</p>
+                        <p class="text-xs text-slate-600 mt-0.5">Responsável: <span class="font-semibold text-blue-800">${cli.responsible}</span></p>
+                        <p class="text-xs text-slate-600 mt-0.5">Início do Contrato: ${cli.start}</p>
+                    </div>
+                    <div>
+                        <div class="text-xs uppercase font-bold text-slate-400 tracking-wider">Condições Comerciais</div>
+                        <div class="text-xl font-bold text-slate-800 mt-1">${formatCurrency(cli.value)} <span class="text-xs font-normal text-slate-500">/mês</span></div>
+                        <p class="text-xs text-slate-600 mt-1">Dia de Vencimento: Todo dia ${cli.dueDay}</p>
+                        <p class="text-xs text-slate-600 mt-1">Status: <span class="font-bold ${cli.status === 'ativo' ? 'text-emerald-600' : 'text-slate-500'}">${cli.status.toUpperCase()}</span></p>
+                    </div>
+                    <div class="flex flex-col justify-between border-t sm:border-t-0 sm:border-l sm:pl-6 pt-4 sm:pt-0 border-slate-100">
+                        <div>
+                            <div class="text-xs uppercase font-bold text-slate-400 tracking-wider">Resumo Financeiro Histórico</div>
+                            <div class="text-sm font-semibold text-emerald-600 mt-2">Total Pago: ${formatCurrency(totalPagoCli)}</div>
+                            <div class="text-sm font-semibold text-afisco-red mt-1">Total em Aberto/Vencido: ${formatCurrency(totalDevendoCli)}</div>
+                        </div>
+                        <div class="mt-4 flex gap-2">
+                            <button onclick="openClientModal('edit', ${cli.id})" class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-semibold transition"><i class="fa-solid fa-pen"></i> Editar Cadastro</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-afisco-border overflow-hidden">
+                    <div class="p-4 bg-slate-50 border-b border-slate-200 font-bold text-afisco-blue text-sm">
+                        Histórico Completo de Mensalidades
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr class="bg-slate-50/50 text-slate-600 text-xs uppercase font-semibold border-b border-slate-200">
+                                    <th class="p-3">Mês Ref.</th>
+                                    <th class="p-3">Previsto</th>
+                                    <th class="p-3">Vencimento</th>
+                                    <th class="p-3">Data Pgto</th>
+                                    <th class="p-3">Valor Pago</th>
+                                    <th class="p-3">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${historyRows}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function resetDataToDemo() {
+            if(confirm("Deseja restaurar todos os dados para os valores padrão de demonstração?")) {
+                location.reload();
+            }
+        }
+    </script>
+</body>
+</html>
