@@ -465,7 +465,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Responsável / Funcionário</label>
-                        <input type="text" id="modalClientResponsible" placeholder="Ex: Nome" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                        <input type="text" id="modalClientResponsible" placeholder="Ex: Harrisson / Nome" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
@@ -499,217 +499,197 @@
         </div>
     </div>
 
-    <!-- Modal de Registro de Pagamento -->
-    <div id="paymentModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <!-- Modal de Registro / Edição de Mensalidade -->
+    <div id="mensalidadeModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
             <div class="flex justify-between items-center border-b pb-3">
-                <h3 class="font-bold text-afisco-blue text-lg">Registrar Pagamento</h3>
-                <button onclick="closePaymentModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+                <h3 class="font-bold text-afisco-blue text-lg">Atualizar Mensalidade</h3>
+                <button onclick="closeMensalidadeModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
-            <input type="hidden" id="payMensalidadeId">
+            <input type="hidden" id="modalMensalidadeId">
             <div class="space-y-3">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Cliente / Referência</label>
-                    <input type="text" id="payInfoClient" readonly class="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-sm text-slate-600">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Cliente / Mês Ref.</label>
+                    <input type="text" id="modalMensalidadeInfo" disabled class="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-sm text-slate-600">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Valor Previsto</label>
-                        <input type="text" id="payInfoPrevisto" readonly class="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-sm text-slate-600 font-semibold">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Valor Previsto (R$)</label>
+                        <input type="number" step="0.01" id="modalMensalidadePrevisto" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Valor Pago (R$)</label>
-                        <input type="number" step="0.01" id="payAmount" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                        <input type="number" step="0.01" id="modalMensalidadePago" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Data do Pagamento</label>
-                        <input type="date" id="payDate" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Data de Pagamento</label>
+                        <input type="date" id="modalMensalidadeDataPgto" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Status</label>
-                        <select id="payStatus" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
-                            <option value="Pago">Pago (Integral)</option>
-                            <option value="Parcial">Parcial</option>
+                        <select id="modalMensalidadeStatus" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
                             <option value="Em aberto">Em aberto</option>
+                            <option value="Pago">Pago</option>
                             <option value="Vencido">Vencido</option>
+                            <option value="Parcial">Parcial</option>
                         </select>
                     </div>
                 </div>
             </div>
             <div class="flex justify-end gap-2 pt-3 border-t">
-                <button onclick="closePaymentModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">Cancelar</button>
-                <button onclick="savePaymentFromModal()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition">Confirmar Pagamento</button>
+                <button onclick="closeMensalidadeModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">Cancelar</button>
+                <button onclick="saveMensalidadeFromModal()" class="px-4 py-2 bg-afisco-blue hover:bg-blue-800 text-white text-xs font-semibold rounded-xl transition">Salvar Pagamento</button>
             </div>
         </div>
     </div>
 
-    <!-- Application Script -->
+    <!-- Modal de Confirmação de Exclusão de Cliente -->
+    <div id="deleteClientModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-4 text-center">
+            <div class="w-12 h-12 rounded-full bg-red-100 text-afisco-red flex items-center justify-center mx-auto text-xl">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-afisco-blue text-lg">Excluir Cliente</h3>
+                <p class="text-xs text-slate-500 mt-1">Tem certeza que deseja excluir o cliente <span id="deleteClientNameLabel" class="font-bold text-slate-700"></span>? Esta ação também removerá todas as mensalidades vinculadas.</p>
+            </div>
+            <input type="hidden" id="deleteClientId">
+            <div class="flex justify-center gap-2 pt-2">
+                <button onclick="closeDeleteClientModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">Cancelar</button>
+                <button onclick="confirmDeleteClient()" class="px-4 py-2 bg-afisco-red hover:bg-afisco-darkRed text-white text-xs font-semibold rounded-xl transition">Sim, Excluir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application JavaScript Code -->
     <script>
-        const monthNames = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+        const mesesNomes = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
-        // Initial Demo State
-        let db = {
-            clients: [
-                { id: 1, name: "Comércio de Alimentos Silva Ltda", cnpj: "12.345.678/0001-90", responsible: "Harrisson", value: 850.00, dueDay: 10, start: "2024-01-15", status: "ativo" },
-                { id: 2, name: "Construtora Horizonte S/A", cnpj: "98.765.432/0001-12", responsible: "Ana Souza", value: 1600.00, dueDay: 15, start: "2023-05-10", status: "ativo" },
-                { id: 3, name: "Auto Peças Mecânica Rápida", cnpj: "45.123.789/0001-55", responsible: "Carlos Lima", value: 650.00, dueDay: 5, start: "2024-03-01", status: "ativo" },
-                { id: 4, name: "Clínica Odontológica Sorriso", cnpj: "11.222.333/0001-44", responsible: "Harrisson", value: 1200.00, dueDay: 20, start: "2022-11-20", status: "ativo" },
-                { id: 5, name: "Padaria e Confeitaria Pão Dourado", cnpj: "55.443.221/0001-88", responsible: "Mariana Dias", value: 500.00, dueDay: 10, start: "2025-01-10", status: "ativo" }
-            ],
-            mensalidades: [
-                // August 2026 data
-                { id: 101, clientId: 1, month: 8, year: 2026, previsto: 850.00, dueDate: "2026-08-10", paymentDate: "2026-08-08", paidAmount: 850.00, status: "Pago" },
-                { id: 102, clientId: 2, month: 8, year: 2026, previsto: 1600.00, dueDate: "2026-08-15", paymentDate: "", paidAmount: 0, status: "Em aberto" },
-                { id: 103, clientId: 3, month: 8, year: 2026, previsto: 650.00, dueDate: "2026-08-05", paymentDate: "", paidAmount: 0, status: "Vencido" },
-                { id: 104, clientId: 4, month: 8, year: 2026, previsto: 1200.00, dueDate: "2026-08-20", paymentDate: "2026-08-19", paidAmount: 1200.00, status: "Pago" },
-                { id: 105, clientId: 5, month: 8, year: 2026, previsto: 500.00, dueDate: "2026-08-10", paymentDate: "", paidAmount: 200.00, status: "Parcial" }
-            ]
-        };
+        let clientesData = [
+            { id: 1, name: "Supermercado Compre Bem Ltda", cnpj: "12.345.678/0001-90", responsible: "Harrisson", value: 1200.00, dueDay: 10, start: "2024-01-10", status: "ativo" },
+            { id: 2, name: "Auto Mecânica São José", cnpj: "98.765.432/0001-11", responsible: "Mariana", value: 850.00, dueDay: 15, start: "2024-03-01", status: "ativo" },
+            { id: 3, name: "Clinica Odontológica Sorriso", cnpj: "45.678.901/0001-22", responsible: "Harrisson", value: 1500.00, dueDay: 5, start: "2023-06-15", status: "ativo" },
+            { id: 4, name: "Construtora Bahia Sul", cnpj: "11.222.333/0001-44", responsible: "Carlos", value: 2200.00, dueDay: 20, start: "2024-05-10", status: "ativo" },
+            { id: 5, name: "Padaria e Confeitaria Pão Dourado", cnpj: "55.444.333/0001-88", responsible: "Mariana", value: 650.00, dueDay: 10, start: "2024-02-01", status: "ativo" }
+        ];
 
-        let activeTab = 'dashboard';
-        let charts = {};
+        let mensalidadesData = [
+            { id: 101, clientId: 1, month: 8, year: 2026, previsto: 1200.00, due: "2026-08-10", paidDate: "2026-08-08", paidValue: 1200.00, status: "Pago" },
+            { id: 102, clientId: 2, month: 8, year: 2026, previsto: 850.00, due: "2026-08-15", paidDate: "", paidValue: 0, status: "Em aberto" },
+            { id: 103, clientId: 3, month: 8, year: 2026, previsto: 1500.00, due: "2026-08-05", paidDate: "2026-08-04", paidValue: 1500.00, status: "Pago" },
+            { id: 104, clientId: 4, month: 8, year: 2026, previsto: 2200.00, due: "2026-08-20", paidDate: "", paidValue: 0, status: "Em aberto" },
+            { id: 105, clientId: 5, month: 8, year: 2026, previsto: 650.00, due: "2026-08-10", paidDate: "", paidValue: 0, status: "Vencido" }
+        ];
+
+        let dashBarChartObj = null;
+        let dashDoughnutChartObj = null;
+        let analiseLineChartObj = null;
+        let analiseInadChartObj = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initApp();
+        });
 
         function initApp() {
-            loadFromLocalStorage();
-            checkAndUpdateOverdueStatus();
-            updateAllViews();
-        }
-
-        function loadFromLocalStorage() {
-            const saved = localStorage.getItem('afisco_db');
-            if (saved) {
-                try { db = JSON.parse(saved); } catch(e) {}
-            }
-        }
-
-        function saveToLocalStorage() {
-            localStorage.setItem('afisco_db', JSON.stringify(db));
-        }
-
-        function resetDataToDemo() {
-            if(confirm("Deseja restaurar os dados de exemplo padrão?")) {
-                localStorage.removeItem('afisco_db');
-                location.reload();
-            }
-        }
-
-        function handleGlobalFilterChange() {
-            updateAllViews();
-        }
-
-        function getCurrentFilter() {
-            return {
-                month: parseInt(document.getElementById('globalMonth').value),
-                year: parseInt(document.getElementById('globalYear').value)
-            };
-        }
-
-        function switchTab(tabId) {
-            activeTab = tabId;
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.className = "tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 text-blue-200 hover:bg-blue-900 hover:text-white";
-            });
-            const activeBtn = document.getElementById(`nav-${tabId}`);
-            if (activeBtn) {
-                activeBtn.className = "tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 bg-afisco-blue text-white shadow";
-            }
-
-            updateAllViews();
-        }
-
-        function checkAndUpdateOverdueStatus() {
-            const today = new Date().toISOString().split('T')[0];
-            db.mensalidades.forEach(m => {
-                if (m.status === 'Em aberto' && m.dueDate < today) {
-                    m.status = 'Vencido';
-                }
-            });
-        }
-
-        function updateAllViews() {
-            checkAndUpdateOverdueStatus();
             renderDashboard();
             renderClientsTable();
             renderMensalidadesTable();
             renderInadimplenciaTable();
             renderAnaliseTab();
-            populateClientSelects();
-            renderClientFicha();
-            saveToLocalStorage();
+            populateFichaSelect();
         }
 
-        function formatMoney(val) {
-            return 'R$ ' + parseFloat(val || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        function handleGlobalFilterChange() {
+            renderDashboard();
+            renderMensalidadesTable();
         }
 
-        // --- 1. DASHBOARD LOGIC ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.className = "tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 text-blue-200 hover:bg-blue-900 hover:text-white";
+            });
+            const activeBtn = document.getElementById('nav-' + tabId);
+            if(activeBtn) {
+                activeBtn.className = "tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 bg-afisco-blue text-white shadow";
+            }
+
+            if(tabId === 'dashboard') renderDashboard();
+            if(tabId === 'clients') renderClientsTable();
+            if(tabId === 'mensalidades') renderMensalidadesTable();
+            if(tabId === 'inadimplencia') renderInadimplenciaTable();
+            if(tabId === 'analise') renderAnaliseTab();
+            if(tabId === 'ficha') renderClientFicha();
+        }
+
+        function getSelectedPeriod() {
+            const m = parseInt(document.getElementById('globalMonth').value);
+            const y = parseInt(document.getElementById('globalYear').value);
+            return { month: m, year: y };
+        }
+
+        function formatCurrency(val) {
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+        }
+
+        // ================= DASHBOARD LOGIC =================
         function renderDashboard() {
-            const filter = getCurrentFilter();
-            const monthName = monthNames[filter.month];
-            document.getElementById('dashSubtitle').innerText = `Resumo consolidado para ${monthName} de ${filter.year}.`;
-            document.getElementById('lblCurrentMonthYear').innerText = `${monthName} / ${filter.year}`;
+            const { month, year } = getSelectedPeriod();
+            document.getElementById('dashSubtitle').innerText = `Resumo consolidado para ${mesesNomes[month]} de ${year}.`;
+            document.getElementById('lblCurrentMonthYear').innerText = `${mesesNomes[month]} / ${year}`;
 
-            const mensFiltered = db.mensalidades.filter(m => m.month === filter.month && m.year === filter.year);
-            const activeClients = db.clients.filter(c => c.status === 'ativo');
+            const activeClients = clientesData.filter(c => c.status === 'ativo');
+            const mensPeriod = mensalidadesData.filter(m => m.month === month && m.year === year);
 
-            let totalPrevisto = 0;
-            let totalRecebido = 0;
-            let totalEmAberto = 0;
-            let totalInadimplente = 0;
-            let countAberto = 0;
-            let countInadimplentesClients = new Set();
+            let previsto = 0;
+            let recebido = 0;
+            let emAberto = 0;
+            let inadimplente = 0;
+            let qtdEmAberto = 0;
+            let clientesInadCount = new Set();
 
-            mensFiltered.forEach(m => {
-                totalPrevisto += m.previsto;
-                if (m.status === 'Pago') {
-                    totalRecebido += m.paidAmount || m.previsto;
-                } else if (m.status === 'Parcial') {
-                    totalRecebido += m.paidAmount || 0;
-                    totalEmAberto += (m.previsto - (m.paidAmount || 0));
-                } else if (m.status === 'Em aberto') {
-                    totalEmAberto += m.previsto;
-                    countAberto++;
-                } else if (m.status === 'Vencido') {
-                    totalInadimplente += m.previsto;
-                    countInadimplentesClients.add(m.clientId);
+            mensPeriod.forEach(item => {
+                previsto += item.previsto;
+                if(item.status === 'Pago') {
+                    recebido += item.paidValue;
+                } else if(item.status === 'Em aberto' || item.status === 'Parcial') {
+                    emAberto += (item.previsto - item.paidValue);
+                    qtdEmAberto++;
+                } else if(item.status === 'Vencido') {
+                    inadimplente += (item.previsto - item.paidValue);
+                    clientesInadCount.add(item.clientId);
                 }
             });
 
-            const taxaRecebimento = totalPrevisto > 0 ? ((totalRecebido / totalPrevisto) * 100).toFixed(1) : 0;
+            const taxaRec = previsto > 0 ? (recebido / previsto) * 100 : 0;
 
-            document.getElementById('kpiPrevisto').innerText = formatMoney(totalPrevisto);
+            document.getElementById('kpiPrevisto').innerText = formatCurrency(previsto);
+            document.getElementById('kpiRecebido').innerText = formatCurrency(recebido);
+            document.getElementById('kpiTaxaRecebimento').innerText = taxaRec.toFixed(1) + '%';
+            document.getElementById('kpiEmAberto').innerText = formatCurrency(emAberto);
+            document.getElementById('kpiQtdEmAberto').innerText = `${qtdEmAberto} títulos`;
+            document.getElementById('kpiInadimplencia').innerText = formatCurrency(inadimplente);
+            document.getElementById('kpiClientesInadimplentesCount').innerText = `${clientesInadCount.size} clientes`;
             document.getElementById('kpiClientesAtivosCount').innerText = `${activeClients.length} clientes ativos`;
-            document.getElementById('kpiRecebido').innerText = formatMoney(totalRecebido);
-            document.getElementById('kpiTaxaRecebimento').innerText = `${taxaRecebimento}%`;
-            document.getElementById('kpiEmAberto').innerText = formatMoney(totalEmAberto);
-            document.getElementById('kpiQtdEmAberto').innerText = `${countAberto} títulos`;
-            document.getElementById('kpiInadimplencia').innerText = formatMoney(totalInadimplente);
-            document.getElementById('kpiClientesInadimplentesCount').innerText = `${countInadimplentesClients.size} clientes`;
+            document.getElementById('badgeInadCount').innerText = clientesInadCount.size;
 
-            // Badge Inadimplência
-            document.getElementById('badgeInadCount').innerText = countInadimplentesClients.size;
-
-            // Render Charts
-            renderDashCharts(totalRecebido, totalEmAberto, totalInadimplente);
+            renderCharts(previsto, recebido, emAberto, inadimplente);
         }
 
-        function renderDashCharts(recebido, emAberto, inadimplente) {
-            // Bar Chart
+        function renderCharts(prev, rec, aberto, inad) {
             const ctxBar = document.getElementById('dashBarChart').getContext('2d');
-            if (charts.bar) charts.bar.destroy();
-            charts.bar = new Chart(ctxBar, {
+            if(dashBarChartObj) dashBarChartObj.destroy();
+            dashBarChartObj = new Chart(ctxBar, {
                 type: 'bar',
                 data: {
-                    labels: ['Recebido', 'Em Aberto', 'Inadimplente'],
+                    labels: ['Previsto', 'Recebido', 'Em Aberto', 'Inadimplente'],
                     datasets: [{
-                        label: 'Valores (R$)',
-                        data: [recebido, emAberto, inadimplente],
-                        backgroundColor: ['#10b981', '#f59e0b', '#e11d48'],
+                        data: [prev, rec, aberto, inad],
+                        backgroundColor: ['#1d4ed8', '#10b981', '#f59e0b', '#e11d48'],
                         borderRadius: 8
                     }]
                 },
@@ -721,15 +701,14 @@
                 }
             });
 
-            // Doughnut Chart
             const ctxDoughnut = document.getElementById('dashDoughnutChart').getContext('2d');
-            if (charts.doughnut) charts.doughnut.destroy();
-            charts.doughnut = new Chart(ctxDoughnut, {
+            if(dashDoughnutChartObj) dashDoughnutChartObj.destroy();
+            dashDoughnutChartObj = new Chart(ctxDoughnut, {
                 type: 'doughnut',
                 data: {
                     labels: ['Recebido', 'Em Aberto', 'Inadimplente'],
                     datasets: [{
-                        data: [recebido, emAberto, inadimplente],
+                        data: [rec, aberto, inad],
                         backgroundColor: ['#10b981', '#f59e0b', '#e11d48']
                     }]
                 },
@@ -741,37 +720,41 @@
             });
         }
 
-        // --- 2. CLIENTS LOGIC ---
+        // ================= CLIENTES LOGIC =================
         function renderClientsTable() {
             const search = document.getElementById('clientSearchInput').value.toLowerCase();
             const statusFilter = document.getElementById('clientStatusFilter').value;
             const tbody = document.getElementById('clientsTableBody');
             tbody.innerHTML = '';
 
-            const filtered = db.clients.filter(c => {
+            const filtered = clientesData.filter(c => {
                 const matchSearch = c.name.toLowerCase().includes(search) || c.cnpj.includes(search) || c.responsible.toLowerCase().includes(search);
                 const matchStatus = statusFilter === 'todos' || c.status === statusFilter;
                 return matchSearch && matchStatus;
             });
 
-            if (filtered.length === 0) {
+            if(filtered.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">Nenhum cliente encontrado.</td></tr>`;
                 return;
             }
 
             filtered.forEach(c => {
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50 transition";
+                tr.className = "hover:bg-slate-50/80 transition";
                 tr.innerHTML = `
                     <td class="p-4 font-semibold text-afisco-blue">${c.name}</td>
-                    <td class="p-4 text-slate-600 font-mono text-xs">${c.cnpj}</td>
-                    <td class="p-4 text-slate-700">${c.responsible}</td>
-                    <td class="p-4 font-medium text-emerald-600">${formatMoney(c.value)}</td>
+                    <td class="p-4 text-slate-600">${c.cnpj}</td>
+                    <td class="p-4 text-slate-700 font-medium"><span class="bg-blue-50 text-blue-800 text-xs px-2.5 py-1 rounded-lg">${c.responsible}</span></td>
+                    <td class="p-4 font-bold text-slate-800">${formatCurrency(c.value)}</td>
                     <td class="p-4 text-slate-600">Dia ${c.dueDay}</td>
-                    <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${c.status === 'ativo' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}">${c.status.toUpperCase()}</span></td>
+                    <td class="p-4">
+                        <span class="px-2.5 py-1 rounded-full text-xs font-bold ${c.status === 'ativo' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'}">
+                            ${c.status.toUpperCase()}
+                        </span>
+                    </td>
                     <td class="p-4 text-right space-x-2">
-                        <button onclick="openClientModal('edit', ${c.id})" title="Editar" class="text-blue-600 hover:text-blue-800 p-1"><i class="fa-solid fa-pen-to-square"></i></button>
-                        <button onclick="deleteClient(${c.id})" title="Excluir" class="text-red-500 hover:text-red-700 p-1"><i class="fa-solid fa-trash"></i></button>
+                        <button onclick="openClientModal('edit', ${c.id})" class="text-blue-600 hover:text-blue-800 text-xs font-semibold px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 transition"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="openDeleteClientModal(${c.id})" class="text-red-600 hover:text-red-800 text-xs font-semibold px-2 py-1 rounded bg-red-50 hover:bg-red-100 transition"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -780,7 +763,7 @@
 
         function openClientModal(mode, id = null) {
             document.getElementById('clientModal').classList.remove('hidden');
-            if (mode === 'new') {
+            if(mode === 'new') {
                 document.getElementById('clientModalTitle').innerText = "Novo Cliente";
                 document.getElementById('modalClientId').value = "";
                 document.getElementById('modalClientName').value = "";
@@ -792,8 +775,8 @@
                 document.getElementById('modalClientStatus').value = "ativo";
             } else {
                 document.getElementById('clientModalTitle').innerText = "Editar Cliente";
-                const c = db.clients.find(x => x.id === id);
-                if (c) {
+                const c = clientesData.find(item => item.id === id);
+                if(c) {
                     document.getElementById('modalClientId').value = c.id;
                     document.getElementById('modalClientName').value = c.name;
                     document.getElementById('modalClientCnpj').value = c.cnpj;
@@ -815,22 +798,22 @@
             const name = document.getElementById('modalClientName').value;
             const cnpj = document.getElementById('modalClientCnpj').value;
             const responsible = document.getElementById('modalClientResponsible').value;
-            const value = parseFloat(document.getElementById('modalClientValue').value);
-            const dueDay = parseInt(document.getElementById('modalClientDueDay').value);
+            const value = parseFloat(document.getElementById('modalClientValue').value) || 0;
+            const dueDay = parseInt(document.getElementById('modalClientDueDay').value) || 10;
             const start = document.getElementById('modalClientStart').value;
             const status = document.getElementById('modalClientStatus').value;
 
-            if (!name || !cnpj || isNaN(value)) {
-                alert("Preencha os campos obrigatórios corretamente.");
+            if(!name) {
+                alert('Por favor, informe o nome do cliente.');
                 return;
             }
 
-            if (!id) {
-                const newId = db.clients.length > 0 ? Math.max(...db.clients.map(c => c.id)) + 1 : 1;
-                db.clients.push({ id: newId, name, cnpj, responsible, value, dueDay, start, status });
+            if(id === "") {
+                const newId = clientesData.length > 0 ? Math.max(...clientesData.map(c => c.id)) + 1 : 1;
+                clientesData.push({ id: newId, name, cnpj, responsible, value, dueDay, start, status });
             } else {
-                const c = db.clients.find(x => x.id == id);
-                if (c) {
+                const c = clientesData.find(item => item.id == id);
+                if(c) {
                     c.name = name;
                     c.cnpj = cnpj;
                     c.responsible = responsible;
@@ -842,187 +825,215 @@
             }
 
             closeClientModal();
-            updateAllViews();
+            renderClientsTable();
+            populateFichaSelect();
+            renderDashboard();
         }
 
-        function deleteClient(id) {
-            if (confirm("Deseja realmente excluir este cliente?")) {
-                db.clients = db.clients.filter(c => c.id !== id);
-                updateAllViews();
+        function openDeleteClientModal(id) {
+            const c = clientesData.find(item => item.id === id);
+            if(c) {
+                document.getElementById('deleteClientId').value = c.id;
+                document.getElementById('deleteClientNameLabel').innerText = c.name;
+                document.getElementById('deleteClientModal').classList.remove('hidden');
             }
         }
 
-        // --- 3. MENSALIDADES LOGIC ---
-        function generateMonthlyBilling() {
-            const filter = getCurrentFilter();
-            const activeClients = db.clients.filter(c => c.status === 'ativo');
-            let generatedCount = 0;
-
-            activeClients.forEach(c => {
-                const exists = db.mensalidades.some(m => m.clientId === c.id && m.month === filter.month && m.year === filter.year);
-                if (!exists) {
-                    const newId = db.mensalidades.length > 0 ? Math.max(...db.mensalidades.map(m => m.id)) + 1 : 1;
-                    const dueDateStr = `${filter.year}-${String(filter.month).padStart(2, '0')}-${String(c.dueDay).padStart(2, '0')}`;
-                    db.mensalidades.push({
-                        id: newId,
-                        clientId: c.id,
-                        month: filter.month,
-                        year: filter.year,
-                        previsto: c.value,
-                        dueDate: dueDateStr,
-                        paymentDate: "",
-                        paidAmount: 0,
-                        status: "Em aberto"
-                    });
-                    generatedCount++;
-                }
-            });
-
-            alert(`Faturamento gerado com sucesso! ${generatedCount} novas mensalidades adicionadas para ${monthNames[filter.month]}/${filter.year}.`);
-            updateAllViews();
+        function closeDeleteClientModal() {
+            document.getElementById('deleteClientModal').classList.add('hidden');
         }
 
+        function confirmDeleteClient() {
+            const id = parseInt(document.getElementById('deleteClientId').value);
+            
+            // Remove o cliente
+            clientesData = clientesData.filter(c => c.id !== id);
+            
+            // Remove também todas as mensalidades associadas a este cliente
+            mensalidadesData = mensalidadesData.filter(m => m.clientId !== id);
+
+            closeDeleteClientModal();
+            renderClientsTable();
+            renderMensalidadesTable();
+            renderInadimplenciaTable();
+            populateFichaSelect();
+            renderDashboard();
+        }
+
+        // ================= MENSALIDADES LOGIC =================
         function renderMensalidadesTable() {
-            const filter = getCurrentFilter();
+            const { month, year } = getSelectedPeriod();
             const search = document.getElementById('billingSearchInput').value.toLowerCase();
             const statusFilter = document.getElementById('billingStatusFilter').value;
             const tbody = document.getElementById('mensalidadesTableBody');
             tbody.innerHTML = '';
 
-            const filtered = db.mensalidades.filter(m => {
-                if (m.month !== filter.month || m.year !== filter.year) return false;
-                const client = db.clients.find(c => c.id === m.clientId);
-                const clientName = client ? client.name.toLowerCase() : '';
-                const matchSearch = clientName.includes(search);
-                const matchStatus = statusFilter === 'todos' || m.status === statusFilter;
-                return matchSearch && matchStatus;
+            const list = mensalidadesData.filter(m => m.month === month && m.year === year);
+            
+            const filtered = list.filter(item => {
+                const cli = clientesData.find(c => c.id === item.clientId);
+                if(!cli) return false;
+                const matchName = cli.name.toLowerCase().includes(search);
+                const matchStatus = statusFilter === 'todos' || item.status === statusFilter;
+                return matchName && matchStatus;
             });
 
             document.getElementById('billingCountLabel').innerText = `Mostrando ${filtered.length} mensalidades`;
 
-            if (filtered.length === 0) {
+            if(filtered.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-slate-400">Nenhuma mensalidade encontrada para este período. Clique em "Gerar Faturamento do Mês".</td></tr>`;
                 return;
             }
 
-            filtered.forEach(m => {
-                const client = db.clients.find(c => c.id === m.clientId);
-                const clientName = client ? client.name : 'Cliente Removido';
-                const resp = client ? client.responsible : '-';
+            filtered.forEach(item => {
+                const cli = clientesData.find(c => c.id === item.clientId);
+                if(!cli) return;
 
-                let statusBadge = '';
-                if (m.status === 'Pago') statusBadge = '<span class="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-semibold">Pago</span>';
-                else if (m.status === 'Parcial') statusBadge = '<span class="bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full text-xs font-semibold">Parcial</span>';
-                else if (m.status === 'Vencido') statusBadge = '<span class="bg-red-50 text-afisco-red px-2.5 py-1 rounded-full text-xs font-semibold">Vencido</span>';
-                else statusBadge = '<span class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full text-xs font-semibold">Em aberto</span>';
+                let statusBadge = "";
+                if(item.status === 'Pago') statusBadge = "bg-emerald-100 text-emerald-800";
+                else if(item.status === 'Vencido') statusBadge = "bg-red-100 text-afisco-red font-bold";
+                else if(item.status === 'Parcial') statusBadge = "bg-amber-100 text-amber-800";
+                else statusBadge = "bg-slate-100 text-slate-700";
 
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50 transition";
+                tr.className = "hover:bg-slate-50/80 transition";
                 tr.innerHTML = `
-                    <td class="p-4 font-semibold text-afisco-blue">${clientName}</td>
-                    <td class="p-4 text-slate-600">${resp}</td>
-                    <td class="p-4 text-slate-600">${monthNames[m.month].substring(0,3)}/${m.year}</td>
-                    <td class="p-4 font-medium">${formatMoney(m.previsto)}</td>
-                    <td class="p-4 text-slate-600 text-xs">${m.dueDate}</td>
-                    <td class="p-4 text-slate-600 text-xs">${m.paymentDate || '-'}</td>
-                    <td class="p-4 font-medium text-emerald-600">${formatMoney(m.paidAmount)}</td>
-                    <td class="p-4">${statusBadge}</td>
+                    <td class="p-4 font-semibold text-afisco-blue">${cli.name}</td>
+                    <td class="p-4 text-slate-600">${cli.responsible}</td>
+                    <td class="p-4 text-slate-600">${mesesNomes[item.month]}</td>
+                    <td class="p-4 font-bold text-slate-800">${formatCurrency(item.previsto)}</td>
+                    <td class="p-4 text-slate-600">${item.due}</td>
+                    <td class="p-4 text-slate-600">${item.paidDate || '-'}</td>
+                    <td class="p-4 font-bold text-emerald-600">${formatCurrency(item.paidValue)}</td>
+                    <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge}">${item.status}</span></td>
                     <td class="p-4 text-right">
-                        <button onclick="openPaymentModal(${m.id})" class="bg-afisco-blue hover:bg-blue-800 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition">Registrar Pgto</button>
+                        <button onclick="openMensalidadeModal(${item.id})" class="text-blue-600 hover:text-blue-800 text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 transition flex items-center gap-1 ml-auto"><i class="fa-solid fa-pen-to-square"></i> Editar</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        function openPaymentModal(mensalidadeId) {
-            const m = db.mensalidades.find(x => x.id === mensalidadeId);
-            if (!m) return;
-            const client = db.clients.find(c => c.id === m.clientId);
+        function generateMonthlyBilling() {
+            const { month, year } = getSelectedPeriod();
+            const activeClients = clientesData.filter(c => c.status === 'ativo');
+            let addedCount = 0;
 
-            document.getElementById('payMensalidadeId').value = m.id;
-            document.getElementById('payInfoClient').value = client ? client.name : '';
-            document.getElementById('payInfoPrevisto').value = formatMoney(m.previsto);
-            document.getElementById('payAmount').value = m.paidAmount > 0 ? m.paidAmount : m.previsto;
-            document.getElementById('payDate').value = m.paymentDate || new Date().toISOString().split('T')[0];
-            document.getElementById('payStatus').value = m.status === 'Em aberto' || m.status === 'Vencido' ? 'Pago' : m.status;
+            activeClients.forEach(cli => {
+                const exists = mensalidadesData.find(m => m.clientId === cli.id && m.month === month && m.year === year);
+                if(!exists) {
+                    const newId = mensalidadesData.length > 0 ? Math.max(...mensalidadesData.map(m => m.id)) + 1 : 1;
+                    const dueDateStr = `${year}-${String(month).padStart(2, '0')}-${String(cli.dueDay).padStart(2, '0')}`;
+                    mensalidadesData.push({
+                        id: newId,
+                        clientId: cli.id,
+                        month: month,
+                        year: year,
+                        previsto: cli.value,
+                        due: dueDateStr,
+                        paidDate: "",
+                        paidValue: 0,
+                        status: "Em aberto"
+                    });
+                    addedCount++;
+                }
+            });
 
-            document.getElementById('paymentModal').classList.remove('hidden');
+            alert(`Faturamento gerado com sucesso! ${addedCount} novas mensalidades adicionadas para ${mesesNomes[month]}/${year}.`);
+            renderMensalidadesTable();
+            renderDashboard();
         }
 
-        function closePaymentModal() {
-            document.getElementById('paymentModal').classList.add('hidden');
+        function openMensalidadeModal(id) {
+            const item = mensalidadesData.find(m => m.id === id);
+            if(!item) return;
+            const cli = clientesData.find(c => c.id === item.clientId);
+
+            document.getElementById('modalMensalidadeId').value = item.id;
+            document.getElementById('modalMensalidadeInfo').value = `${cli ? cli.name : 'Cliente'} (${mesesNomes[item.month]}/${item.year})`;
+            document.getElementById('modalMensalidadePrevisto').value = item.previsto;
+            document.getElementById('modalMensalidadePago').value = item.paidValue || item.previsto;
+            document.getElementById('modalMensalidadeDataPgto').value = item.paidDate || new Date().toISOString().split('T')[0];
+            document.getElementById('modalMensalidadeStatus').value = item.status;
+
+            document.getElementById('mensalidadeModal').classList.remove('hidden');
         }
 
-        function savePaymentFromModal() {
-            const id = parseInt(document.getElementById('payMensalidadeId').value);
-            const paidAmount = parseFloat(document.getElementById('payAmount').value);
-            const paymentDate = document.getElementById('payDate').value;
-            const status = document.getElementById('payStatus').value;
+        function closeMensalidadeModal() {
+            document.getElementById('mensalidadeModal').classList.add('hidden');
+        }
 
-            const m = db.mensalidades.find(x => x.id === id);
-            if (m) {
-                m.paidAmount = isNaN(paidAmount) ? 0 : paidAmount;
-                m.paymentDate = paymentDate;
-                m.status = status;
+        function saveMensalidadeFromModal() {
+            const id = parseInt(document.getElementById('modalMensalidadeId').value);
+            const previsto = parseFloat(document.getElementById('modalMensalidadePrevisto').value) || 0;
+            const paidValue = parseFloat(document.getElementById('modalMensalidadePago').value) || 0;
+            const paidDate = document.getElementById('modalMensalidadeDataPgto').value;
+            const status = document.getElementById('modalMensalidadeStatus').value;
+
+            const item = mensalidadesData.find(m => m.id === id);
+            if(item) {
+                item.previsto = previsto;
+                item.paidValue = paidValue;
+                item.paidDate = paidDate;
+                item.status = status;
             }
 
-            closePaymentModal();
-            updateAllViews();
+            closeMensalidadeModal();
+            renderMensalidadesTable();
+            renderDashboard();
+            renderInadimplenciaTable();
         }
 
-        // --- 4. INADIMPLÊNCIA LOGIC ---
+        // ================= INADIMPLÊNCIA LOGIC =================
         function renderInadimplenciaTable() {
             const tbody = document.getElementById('inadimplenciaTableBody');
             tbody.innerHTML = '';
 
-            const overdueMap = {};
+            const inadMap = {};
 
-            db.mensalidades.forEach(m => {
-                if (m.status === 'Vencido' || (m.status === 'Parcial' && m.paidAmount < m.previsto)) {
-                    const clientId = m.clientId;
-                    if (!overdueMap[clientId]) {
-                        overdueMap[clientId] = {
-                            clientId: clientId,
-                            count: 0,
-                            totalDevido: 0,
-                            oldestDate: m.dueDate
-                        };
+            mensalidadesData.forEach(item => {
+                if(item.status === 'Vencido') {
+                    if(!inadMap[item.clientId]) {
+                        inadMap[item.clientId] = { count: 0, totalDevido: 0, oldestDate: item.due };
                     }
-                    const devendo = m.status === 'Parcial' ? (m.previsto - m.paidAmount) : m.previsto;
-                    overdueMap[clientId].count++;
-                    overdueMap[clientId].totalDevido += devendo;
-                    if (m.dueDate < overdueMap[clientId].oldestDate) {
-                        overdueMap[clientId].oldestDate = m.dueDate;
+                    inadMap[item.clientId].count++;
+                    inadMap[item.clientId].totalDevido += (item.previsto - item.paidValue);
+                    if(item.due < inadMap[item.clientId].oldestDate) {
+                        inadMap[item.clientId].oldestDate = item.due;
                     }
                 }
             });
 
-            const inadList = Object.values(overdueMap).sort((a, b) => b.totalDevido - a.totalDevido);
-            let sumTotalInad = 0;
-            inadList.forEach(item => sumTotalInad += item.totalDevido);
+            const inadList = Object.keys(inadMap).map(clientId => {
+                return {
+                    clientId: parseInt(clientId),
+                    ...inadMap[clientId]
+                };
+            }).sort((a, b) => b.totalDevido - a.totalDevido);
 
-            document.getElementById('inadTotalDevido').innerText = formatMoney(sumTotalInad);
+            let totalGeralDevido = 0;
+            inadList.forEach(item => totalGeralDevido += item.totalDevido);
+            document.getElementById('inadTotalDevido').innerText = formatCurrency(totalGeralDevido);
 
-            if (inadList.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">Nenhum cliente inadimplente no momento. Parabéns!</td></tr>`;
+            if(inadList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">Nenhum cliente inadimplente no momento. Excelente!</td></tr>`;
                 return;
             }
 
             inadList.forEach(item => {
-                const client = db.clients.find(c => c.id === item.clientId);
-                if (!client) return;
+                const cli = clientesData.find(c => c.id === item.clientId);
+                if(!cli) return;
 
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-red-50/30 transition";
+                tr.className = "hover:bg-red-50/40 transition";
                 tr.innerHTML = `
-                    <td class="p-4 font-semibold text-afisco-blue">${client.name}<br><span class="text-xs text-slate-500 font-mono">${client.cnpj}</span></td>
-                    <td class="p-4 text-slate-700">${client.responsible}</td>
-                    <td class="p-4"><span class="bg-red-100 text-afisco-red px-2.5 py-1 rounded-full text-xs font-bold">${item.count} título(s)</span></td>
-                    <td class="p-4 font-bold text-afisco-red">${formatMoney(item.totalDevido)}</td>
-                    <td class="p-4 text-slate-600 text-xs">${item.oldestDate}</td>
+                    <td class="p-4 font-semibold text-afisco-blue">${cli.name}<br><span class="text-xs text-slate-400 font-normal">${cli.cnpj}</span></td>
+                    <td class="p-4 text-slate-700">${cli.responsible}</td>
+                    <td class="p-4 font-bold text-afisco-red">${item.count} título(s)</td>
+                    <td class="p-4 font-bold text-afisco-red text-base">${formatCurrency(item.totalDevido)}</td>
+                    <td class="p-4 text-slate-600">${item.oldestDate}</td>
                     <td class="p-4 text-right">
-                        <button onclick="goToClientFicha(${client.id})" class="bg-afisco-blue hover:bg-blue-800 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition">Ver Ficha</button>
+                        <button onclick="goToClientFicha(${cli.id})" class="text-blue-600 hover:text-blue-800 text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 transition"><i class="fa-solid fa-eye"></i> Ver Ficha</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -1035,194 +1046,164 @@
             renderClientFicha();
         }
 
-        // --- 5. ANÁLISE MENSAL LOGIC ---
+        // ================= ANÁLISE MENSAL LOGIC =================
         function renderAnaliseTab() {
-            const filter = getCurrentFilter();
-            document.getElementById('lblAnoAnalise').innerText = filter.year;
+            const year = parseInt(document.getElementById('globalYear').value);
+            document.getElementById('lblAnoAnalise').innerText = year;
 
+            const mesesArr = [1,2,3,4,5,6,7,8,9,10,11,12];
+            const prevArr = [];
+            const recArr = [];
+            const inadPctArr = [];
             const tbody = document.getElementById('analiseTableBody');
             tbody.innerHTML = '';
 
-            let monthsData = [];
-            for (let m = 1; m <= 12; m++) {
-                const mensMonth = db.mensalidades.filter(item => item.month === m && item.year === filter.year);
-                let previsto = 0;
-                let recebido = 0;
-                let aberto = 0;
-                let inadimplente = 0;
-
-                mensMonth.forEach(item => {
-                    previsto += item.previsto;
-                    if (item.status === 'Pago') recebido += (item.paidAmount || item.previsto);
-                    else if (item.status === 'Parcial') {
-                        recebido += (item.paidAmount || 0);
-                        aberto += (item.previsto - (item.paidAmount || 0));
-                    } else if (item.status === 'Em aberto') aberto += item.previsto;
-                    else if (item.status === 'Vencido') inadimplente += item.previsto;
+            mesesArr.forEach(m => {
+                const list = mensalidadesData.filter(item => item.month === m && item.year === year);
+                let prev = 0, rec = 0, aberto = 0, inad = 0;
+                list.forEach(i => {
+                    prev += i.previsto;
+                    if(i.status === 'Pago') rec += i.paidValue;
+                    if(i.status === 'Em aberto' || i.status === 'Parcial') aberto += (i.previsto - i.paidValue);
+                    if(i.status === 'Vencido') inad += (i.previsto - i.paidValue);
                 });
 
-                const pctRecebido = previsto > 0 ? ((recebido / previsto) * 100).toFixed(1) : 0;
-                const pctInad = previsto > 0 ? ((inadimplente / previsto) * 100).toFixed(1) : 0;
-                const diff = recebido - previsto;
+                const pctRec = prev > 0 ? (rec / prev) * 100 : 0;
+                const pctInad = prev > 0 ? (inad / prev) * 100 : 0;
+                const diff = rec - prev;
 
-                monthsData.push({ monthNum: m, monthName: monthNames[m], previsto, recebido, aberto: aberto + inadimplente, pctRecebido, pctInad, diff });
+                prevArr.push(prev);
+                recArr.push(rec);
+                inadPctArr.push(pctInad);
 
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50 transition";
                 tr.innerHTML = `
-                    <td class="p-4 font-semibold text-afisco-blue">${monthNames[m]}</td>
-                    <td class="p-4">${formatMoney(previsto)}</td>
-                    <td class="p-4 text-emerald-600 font-medium">${formatMoney(recebido)}</td>
-                    <td class="p-4 text-amber-600">${formatMoney(aberto + inadimplente)}</td>
-                    <td class="p-4 font-bold text-emerald-600">${pctRecebido}%</td>
-                    <td class="p-4 font-bold text-afisco-red">${pctInad}%</td>
-                    <td class="p-4 font-medium ${diff >= 0 ? 'text-emerald-600' : 'text-afisco-red'}">${formatMoney(diff)}</td>
+                    <td class="p-4 font-semibold text-afisco-blue">${mesesNomes[m]}</td>
+                    <td class="p-4 font-bold text-slate-800">${formatCurrency(prev)}</td>
+                    <td class="p-4 font-bold text-emerald-600">${formatCurrency(rec)}</td>
+                    <td class="p-4 font-medium text-amber-600">${formatCurrency(aberto)}</td>
+                    <td class="p-4 font-bold text-blue-600">${pctRec.toFixed(1)}%</td>
+                    <td class="p-4 font-bold text-afisco-red">${pctInad.toFixed(1)}%</td>
+                    <td class="p-4 font-semibold ${diff >= 0 ? 'text-emerald-600' : 'text-afisco-red'}">${formatCurrency(diff)}</td>
                 `;
                 tbody.appendChild(tr);
-            }
+            });
 
-            renderAnaliseCharts(monthsData);
-        }
-
-        function renderAnaliseCharts(data) {
-            const labels = data.map(d => d.monthName.substring(0, 3));
-            const prevData = data.map(d => d.previsto);
-            const recData = data.map(d => d.recebido);
-            const inadData = data.map(d => parseFloat(d.pctInad));
-
-            // Line Chart Prev vs Rec
             const ctxLine = document.getElementById('analiseLineChart').getContext('2d');
-            if (charts.line) charts.line.destroy();
-            charts.line = new Chart(ctxLine, {
+            if(analiseLineChartObj) analiseLineChartObj.destroy();
+            analiseLineChartObj = new Chart(ctxLine, {
                 type: 'line',
                 data: {
-                    labels: labels,
+                    labels: mesesNomes.slice(1),
                     datasets: [
-                        { label: 'Previsto', data: prevData, borderColor: '#11355c', backgroundColor: '#11355c', tension: 0.2 },
-                        { label: 'Recebido', data: recData, borderColor: '#10b981', backgroundColor: '#10b981', tension: 0.2 }
+                        { label: 'Previsto', data: prevArr, borderColor: '#1d4ed8', backgroundColor: '#1d4ed8', tension: 0.2 },
+                        { label: 'Recebido', data: recArr, borderColor: '#10b981', backgroundColor: '#10b981', tension: 0.2 }
                     ]
                 },
                 options: { responsive: true, maintainAspectRatio: false }
             });
 
-            // Line Chart Inadimplência %
             const ctxInad = document.getElementById('analiseInadChart').getContext('2d');
-            if (charts.inadLine) charts.inadLine.destroy();
-            charts.inadLine = new Chart(ctxInad, {
+            if(analiseInadChartObj) analiseInadChartObj.destroy();
+            analiseInadChartObj = new Chart(ctxInad, {
                 type: 'line',
                 data: {
-                    labels: labels,
-                    datasets: [{
-                        label: '% Inadimplência',
-                        data: inadData,
-                        borderColor: '#e11d48',
-                        backgroundColor: '#e11d48',
-                        tension: 0.2,
-                        fill: true
-                    }]
+                    labels: mesesNomes.slice(1),
+                    datasets: [{ label: '% Inadimplência', data: inadPctArr, borderColor: '#e11d48', backgroundColor: '#e11d48', tension: 0.2, fill: true }]
                 },
-                options: { responsive: true, maintainAspectRatio: false }
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
             });
         }
 
-        // --- 6. FICHA DO CLIENTE LOGIC ---
-        function populateClientSelects() {
+        // ================= FICHA DO CLIENTE LOGIC =================
+        function populateFichaSelect() {
             const select = document.getElementById('fichaClientSelect');
-            const currentVal = select.value;
             select.innerHTML = '';
-
-            db.clients.forEach(c => {
+            clientesData.forEach(c => {
                 const opt = document.createElement('option');
                 opt.value = c.id;
-                opt.innerText = `${c.name} (${c.cnpj})`;
+                opt.innerText = c.name;
                 select.appendChild(opt);
             });
-
-            if (currentVal && db.clients.some(c => c.id == currentVal)) {
-                select.value = currentVal;
-            }
         }
 
         function renderClientFicha() {
+            const selectId = parseInt(document.getElementById('fichaClientSelect').value);
             const container = document.getElementById('fichaContentContainer');
-            const clientId = parseInt(document.getElementById('fichaClientSelect').value);
-            if (!clientId) {
-                container.innerHTML = `<div class="bg-white p-6 rounded-2xl text-center text-slate-400">Selecione um cliente para visualizar a ficha.</div>`;
+            container.innerHTML = '';
+
+            const cli = clientesData.find(c => c.id === selectId);
+            if(!cli) {
+                container.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-sm border border-afisco-border text-center text-slate-400">Selecione um cliente acima.</div>`;
                 return;
             }
 
-            const client = db.clients.find(c => c.id === clientId);
-            if (!client) return;
+            const cliMensalidades = mensalidadesData.filter(m => m.clientId === cli.id);
+            let totalPagoCli = 0;
+            let totalDevendoCli = 0;
 
-            const clientMensalidades = db.mensalidades.filter(m => m.clientId === clientId).sort((a,b) => {
-                if(a.year !== b.year) return b.year - a.year;
-                return b.month - a.month;
-            });
-
-            let totalPagoAll = 0;
-            let totalDevidoAll = 0;
-
-            clientMensalidades.forEach(m => {
-                if (m.status === 'Pago') totalPagoAll += (m.paidAmount || m.previsto);
-                else if (m.status === 'Parcial') {
-                    totalPagoAll += (m.paidAmount || 0);
-                    totalDevidoAll += (m.previsto - (m.paidAmount || 0));
-                } else if (m.status === 'Vencido' || m.status === 'Em aberto') {
-                    totalDevidoAll += m.previsto;
+            cliMensalidades.forEach(m => {
+                if(m.status === 'Pago') totalPagoCli += m.paidValue;
+                if(m.status === 'Vencido' || m.status === 'Em aberto' || m.status === 'Parcial') {
+                    totalDevendoCli += (m.previsto - m.paidValue);
                 }
             });
 
-            let rowsHtml = '';
-            clientMensalidades.forEach(m => {
-                let badge = '';
-                if (m.status === 'Pago') badge = '<span class="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-semibold">Pago</span>';
-                else if (m.status === 'Parcial') badge = '<span class="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full text-xs font-semibold">Parcial</span>';
-                else if (m.status === 'Vencido') badge = '<span class="bg-red-50 text-afisco-red px-2 py-0.5 rounded-full text-xs font-semibold">Vencido</span>';
-                else badge = '<span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs font-semibold">Em aberto</span>';
-
-                rowsHtml += `
-                    <tr class="hover:bg-slate-50 transition">
-                        <td class="p-3">${monthNames[m.month]}/${m.year}</td>
-                        <td class="p-3 font-medium">${formatMoney(m.previsto)}</td>
-                        <td class="p-3 text-slate-600">${m.dueDate}</td>
-                        <td class="p-3 text-slate-600">${m.paymentDate || '-'}</td>
-                        <td class="p-3 text-emerald-600 font-medium">${formatMoney(m.paidAmount)}</td>
-                        <td class="p-3">${badge}</td>
-                    </tr>
-                `;
-            });
+            let historyRows = '';
+            if(cliMensalidades.length === 0) {
+                historyRows = `<tr><td colspan="6" class="p-6 text-center text-slate-400">Nenhum histórico de mensalidade registrado para este cliente.</td></tr>`;
+            } else {
+                cliMensalidades.sort((a,b) => b.year - a.year || b.month - a.month).forEach(m => {
+                    historyRows += `
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="p-3 font-medium">${mesesNomes[m.month]} / ${m.year}</td>
+                            <td class="p-3">${formatCurrency(m.previsto)}</td>
+                            <td class="p-3">${m.due}</td>
+                            <td class="p-3">${m.paidDate || '-'}</td>
+                            <td class="p-3 font-semibold text-emerald-600">${formatCurrency(m.paidValue)}</td>
+                            <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-semibold ${m.status === 'Pago' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-afisco-red'}">${m.status}</span></td>
+                        </tr>
+                    `;
+                });
+            }
 
             container.innerHTML = `
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-afisco-border">
-                        <div class="text-xs font-semibold text-slate-400 uppercase">Dados Cadastrais</div>
-                        <div class="text-base font-bold text-afisco-blue mt-2">${client.name}</div>
-                        <div class="text-xs text-slate-600 mt-1 font-mono">CNPJ: ${client.cnpj}</div>
-                        <div class="text-xs text-slate-600 mt-1">Responsável: <b>${client.responsible}</b></div>
-                        <div class="text-xs text-slate-600 mt-1">Início: ${client.start}</div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-afisco-border grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <div>
+                        <div class="text-xs uppercase font-bold text-slate-400 tracking-wider">Dados Cadastrais</div>
+                        <h3 class="text-lg font-bold text-afisco-blue mt-1">${cli.name}</h3>
+                        <p class="text-xs text-slate-600 mt-0.5">CNPJ: ${cli.cnpj}</p>
+                        <p class="text-xs text-slate-600 mt-0.5">Responsável: <span class="font-semibold text-blue-800">${cli.responsible}</span></p>
+                        <p class="text-xs text-slate-600 mt-0.5">Início do Contrato: ${cli.start}</p>
                     </div>
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-afisco-border">
-                        <div class="text-xs font-semibold text-slate-400 uppercase">Condições Contratuais</div>
-                        <div class="text-xl font-bold text-emerald-600 mt-2">${formatMoney(client.value)} / mês</div>
-                        <div class="text-xs text-slate-600 mt-1">Vencimento todo dia: <b>${client.dueDay}</b></div>
-                        <div class="text-xs text-slate-600 mt-1">Status: <span class="uppercase font-semibold text-afisco-blue">${client.status}</span></div>
+                    <div>
+                        <div class="text-xs uppercase font-bold text-slate-400 tracking-wider">Condições Comerciais</div>
+                        <div class="text-xl font-bold text-slate-800 mt-1">${formatCurrency(cli.value)} <span class="text-xs font-normal text-slate-500">/mês</span></div>
+                        <p class="text-xs text-slate-600 mt-1">Dia de Vencimento: Todo dia ${cli.dueDay}</p>
+                        <p class="text-xs text-slate-600 mt-1">Status: <span class="font-bold ${cli.status === 'ativo' ? 'text-emerald-600' : 'text-slate-500'}">${cli.status.toUpperCase()}</span></p>
                     </div>
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-afisco-border">
-                        <div class="text-xs font-semibold text-slate-400 uppercase">Resumo Financeiro Histórico</div>
-                        <div class="text-sm font-semibold text-emerald-600 mt-2">Total Pago: ${formatMoney(totalPagoAll)}</div>
-                        <div class="text-sm font-semibold text-afisco-red mt-1">Total em Aberto/Devido: ${formatMoney(totalDevidoAll)}</div>
+                    <div class="flex flex-col justify-between border-t sm:border-t-0 sm:border-l sm:pl-6 pt-4 sm:pt-0 border-slate-100">
+                        <div>
+                            <div class="text-xs uppercase font-bold text-slate-400 tracking-wider">Resumo Financeiro Histórico</div>
+                            <div class="text-sm font-semibold text-emerald-600 mt-2">Total Pago: ${formatCurrency(totalPagoCli)}</div>
+                            <div class="text-sm font-semibold text-afisco-red mt-1">Total em Aberto/Vencido: ${formatCurrency(totalDevendoCli)}</div>
+                        </div>
+                        <div class="mt-4 flex gap-2">
+                            <button onclick="openClientModal('edit', ${cli.id})" class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-semibold transition"><i class="fa-solid fa-pen"></i> Editar Cadastro</button>
+                        </div>
                     </div>
                 </div>
 
                 <div class="bg-white rounded-2xl shadow-sm border border-afisco-border overflow-hidden">
                     <div class="p-4 bg-slate-50 border-b border-slate-200 font-bold text-afisco-blue text-sm">
-                        Histórico de Mensalidades do Cliente
+                        Histórico Completo de Mensalidades
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse text-sm">
                             <thead>
                                 <tr class="bg-slate-50/50 text-slate-600 text-xs uppercase font-semibold border-b border-slate-200">
-                                    <th class="p-3">Mês/Ano Ref.</th>
+                                    <th class="p-3">Mês Ref.</th>
                                     <th class="p-3">Previsto</th>
                                     <th class="p-3">Vencimento</th>
                                     <th class="p-3">Data Pgto</th>
@@ -1231,7 +1212,7 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
-                                ${rowsHtml || '<tr><td colspan="6" class="p-4 text-center text-slate-400">Nenhum histórico registrado.</td></tr>'}
+                                ${historyRows}
                             </tbody>
                         </table>
                     </div>
@@ -1239,8 +1220,11 @@
             `;
         }
 
-        // Initialize on load
-        window.onload = initApp;
+        function resetDataToDemo() {
+            if(confirm("Deseja restaurar todos os dados para os valores padrão de demonstração?")) {
+                location.reload();
+            }
+        }
     </script>
 </body>
 </html>
