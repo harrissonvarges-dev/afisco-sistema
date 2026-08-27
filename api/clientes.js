@@ -16,9 +16,9 @@ export default async function handler(req, res) {
     } 
     else if (req.method === 'POST') {
         try {
-            const { name, cnpj, responsible, value, dueDay, start, status } = req.body;
-            const query = 'INSERT INTO clientes (name, cnpj, responsible, value, "dueDay", start, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *';
-            const { rows } = await pool.query(query, [name, cnpj, responsible, value, dueDay, start, status]);
+            const { name, cnpj, responsible, value, due_day, start_date, status } = req.body;
+            const query = 'INSERT INTO clientes (name, cnpj, responsible, value, due_day, start_date, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *';
+            const { rows } = await pool.query(query, [name, cnpj, responsible, value, due_day, start_date, status]);
             res.status(201).json(rows[0]);
         } catch (error) {
             res.status(500).json({ error: 'Erro ao criar cliente' });
@@ -26,9 +26,9 @@ export default async function handler(req, res) {
     } 
     else if (req.method === 'PUT') {
         try {
-            const { id, name, cnpj, responsible, value, dueDay, start, status } = req.body;
-            const query = 'UPDATE clientes SET name=$1, cnpj=$2, responsible=$3, value=$4, "dueDay"=$5, start=$6, status=$7 WHERE id=$8 RETURNING *';
-            const { rows } = await pool.query(query, [name, cnpj, responsible, value, dueDay, start, status, id]);
+            const { id, name, cnpj, responsible, value, due_day, start_date, status } = req.body;
+            const query = 'UPDATE clientes SET name=$1, cnpj=$2, responsible=$3, value=$4, due_day=$5, start_date=$6, status=$7 WHERE id=$8 RETURNING *';
+            const { rows } = await pool.query(query, [name, cnpj, responsible, value, due_day, start_date, status, id]);
             res.status(200).json(rows[0]);
         } catch (error) {
             res.status(500).json({ error: 'Erro ao atualizar cliente' });
