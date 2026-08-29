@@ -13,9 +13,10 @@ Esta versão usa o Neon como fonte de verdade. Cadastros e pagamentos só aparec
 - total de meses pagos por cliente dentro de **Mensalidades** e da ficha do cliente;
 - mensalidade/recibo imprimível ao clicar no cliente, preenchido automaticamente com os dados do Neon;
 - novo logo da Afisco no sistema e no documento de impressão;
-- login individual com sessão segura e senha armazenada por hash;
+- login individual com sessão segura, senha armazenada por hash e permanência ao atualizar a página;
+- encerramento automático somente após 30 minutos sem atividade ou quando a pessoa clicar em **Sair**;
 - Hélio como administrador com acesso completo;
-- funcionários limitados no servidor aos clientes vinculados ao próprio nome de responsável;
+- funcionários veem a lista e o status de pagamento de todos os clientes, mas o servidor só entrega os valores dos clientes pelos quais são responsáveis ou recebedores;
 - compartilhamento opcional por cliente para Nando visualizar, cobrar e dar baixa nas mensalidades de Hélio sem poder editar ou excluir o cadastro;
 - painel de funcionários para criar, desativar e redefinir senhas;
 - histórico de atividades exclusivo do administrador, com logins, clientes, pagamentos e acessos;

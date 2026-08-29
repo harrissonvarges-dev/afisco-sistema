@@ -7,6 +7,23 @@ const {
 } = require('./_db');
 const { requireAuth, recordAudit } = require('./_auth');
 
+function samePerson(left, right) {
+    const expected = String(right || '').trim().toLowerCase();
+    return Boolean(expected) && String(left || '').trim().toLowerCase() === expected;
+}
+
+function mapClienteForUser(row, user, isAdmin) {
+    const cliente = mapCliente(row);
+    const canViewFinancials = isAdmin
+        || samePerson(row.responsible, user.responsibleName)
+        || samePerson(row.collector, user.responsibleName);
+    return {
+        ...cliente,
+        value: canViewFinancials ? cliente.value : null,
+        canViewFinancials
+    };
+}
+
 function normalizeCliente(body) {
     return {
         id: body.id ? Number(body.id) : null,
@@ -30,16 +47,8 @@ module.exports = async function handler(req, res) {
         const isAdmin = user.role === 'admin';
 
         if (req.method === 'GET') {
-            const { rows } = isAdmin
-                ? await pool.query('SELECT * FROM clientes ORDER BY name ASC')
-                : await pool.query(
-                    `SELECT * FROM clientes
-                     WHERE LOWER(TRIM(responsible)) = LOWER(TRIM($1))
-                        OR LOWER(TRIM(collector)) = LOWER(TRIM($1))
-                     ORDER BY name ASC`,
-                    [user.responsibleName]
-                );
-            return res.status(200).json(rows.map(mapCliente));
+            const { rows } = await pool.query('SELECT * FROM clientes ORDER BY name ASC');
+            return res.status(200).json(rows.map(row => mapClienteForUser(row, user, isAdmin)));
         }
 
         if (req.method === 'POST') {

@@ -4,7 +4,7 @@ const { pool, ensureSchema } = require('./_db');
 
 const scryptAsync = promisify(crypto.scrypt);
 const COOKIE_NAME = 'afisco_session';
-const SESSION_HOURS = 12;
+const SESSION_IDLE_MINUTES = 30;
 let adminBootstrapPromise;
 
 function normalizeUsername(value) {
@@ -109,10 +109,10 @@ async function createSession(userId, res) {
     await pool.query('DELETE FROM sessoes WHERE expires_at <= NOW()');
     await pool.query(
         `INSERT INTO sessoes (token_hash, user_id, expires_at)
-         VALUES ($1, $2, NOW() + ($3::INTEGER * INTERVAL '1 hour'))`,
-        [tokenHash, userId, SESSION_HOURS]
+         VALUES ($1, $2, NOW() + ($3::INTEGER * INTERVAL '1 minute'))`,
+        [tokenHash, userId, SESSION_IDLE_MINUTES]
     );
-    res.setHeader('Set-Cookie', serializeCookie(token, SESSION_HOURS * 60 * 60));
+    res.setHeader('Set-Cookie', serializeCookie(token, SESSION_IDLE_MINUTES * 60));
 }
 
 async function destroySession(req, res) {
@@ -123,22 +123,37 @@ async function destroySession(req, res) {
     res.setHeader('Set-Cookie', serializeCookie('', 0));
 }
 
-async function getSessionUser(req) {
+async function getSessionUser(req, res = null) {
     await ensureAdminBootstrap();
     const token = parseCookies(req)[COOKIE_NAME];
     if (!token) return null;
+    const tokenHash = hashToken(token);
     const { rows } = await pool.query(
         `SELECT u.*
          FROM sessoes s
          JOIN usuarios u ON u.id = s.user_id
          WHERE s.token_hash=$1 AND s.expires_at > NOW() AND u.active=TRUE`,
-        [hashToken(token)]
+        [tokenHash]
     );
-    return rows[0] ? mapUser(rows[0]) : null;
+    if (!rows[0]) return null;
+
+    // A sessão é deslizante: cada uso válido renova os 30 minutos de inatividade.
+    await pool.query(
+        `UPDATE sessoes
+         SET expires_at = NOW() + ($2::INTEGER * INTERVAL '1 minute')
+         WHERE token_hash=$1`,
+        [tokenHash, SESSION_IDLE_MINUTES]
+    );
+    if (res) {
+        res.setHeader('Set-Cookie', serializeCookie(token, SESSION_IDLE_MINUTES * 60));
+    }
+    return mapUser(rows[0]);
 }
 
 async function requireAuth(req, res, allowedRoles = null) {
-    const user = await getSessionUser(req);
+    res.setHeader('Cache-Control', 'no-store, private');
+    res.setHeader('Vary', 'Cookie');
+    const user = await getSessionUser(req, res);
     if (!user) {
         res.status(401).json({ error: 'Faça login para continuar.' });
         return null;

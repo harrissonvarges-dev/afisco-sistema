@@ -1,12 +1,14 @@
 const { getSessionUser } = require('../_auth');
 
 module.exports = async function handler(req, res) {
+    res.setHeader('Cache-Control', 'no-store, private');
+    res.setHeader('Vary', 'Cookie');
     if (req.method !== 'GET') {
         res.setHeader('Allow', 'GET');
         return res.status(405).json({ error: 'Método não permitido.' });
     }
     try {
-        const user = await getSessionUser(req);
+        const user = await getSessionUser(req, res);
         if (!user) return res.status(401).json({ error: 'Sessão não encontrada.' });
         return res.status(200).json({ user });
     } catch (error) {

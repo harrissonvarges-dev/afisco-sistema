@@ -48,6 +48,12 @@
         let currentUser = null;
         let appLoaded = false;
         let valuesHidden = false;
+        const SESSION_IDLE_MS = 30 * 60 * 1000;
+        const SESSION_REFRESH_MS = 5 * 60 * 1000;
+        let sessionIdleTimer = null;
+        let lastActivityAt = 0;
+        let lastSessionRefreshAt = 0;
+        let sessionRefreshPromise = null;
         try {
             valuesHidden = localStorage.getItem('afisco_values_hidden') === 'true';
         } catch (_) {
@@ -55,11 +61,16 @@
         }
 
         async function apiRequest(url, options = {}) {
-            const response = await fetch(url, options);
+            const response = await fetch(url, { credentials: 'same-origin', ...options });
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) {
-                if (response.status === 401 && !url.includes('/api/auth/login')) showLoginScreen();
+                if (response.status === 401 && !url.includes('/api/auth/login')) {
+                    showLoginScreen('Sua sessão terminou. Entre novamente para continuar.');
+                }
                 throw new Error(payload.error || 'Não foi possível concluir a operação.');
+            }
+            if (!url.includes('/api/auth/login') && !url.includes('/api/auth/logout')) {
+                lastSessionRefreshAt = Date.now();
             }
             return payload;
         }
@@ -421,7 +432,7 @@
                                 <th class="p-4">Responsável / Funcionário</th>
                                 <th class="p-4">Mensalidade</th>
                                 <th class="p-4">Vencimento</th>
-                                <th class="p-4">Status</th>
+                                <th class="p-4">Pagamento do mês</th>
                                 <th class="p-4 text-right">Ações</th>
                             </tr>
                         </thead>
@@ -836,10 +847,84 @@
         let analiseLineChartObj = null;
         let analiseInadChartObj = null;
 
+        const sessionActivityEvents = ['pointerdown', 'keydown', 'scroll', 'touchstart'];
+
+        function resetSessionIdleTimer() {
+            clearTimeout(sessionIdleTimer);
+            if (!currentUser) return;
+            sessionIdleTimer = setTimeout(handleSessionTimeout, SESSION_IDLE_MS);
+        }
+
+        function stopSessionActivityTracking() {
+            clearTimeout(sessionIdleTimer);
+            sessionIdleTimer = null;
+            sessionActivityEvents.forEach(eventName => {
+                window.removeEventListener(eventName, registerSessionActivity);
+            });
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        }
+
+        function startSessionActivityTracking() {
+            stopSessionActivityTracking();
+            lastActivityAt = Date.now();
+            lastSessionRefreshAt = Date.now();
+            sessionActivityEvents.forEach(eventName => {
+                window.addEventListener(eventName, registerSessionActivity, { passive: true });
+            });
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            resetSessionIdleTimer();
+        }
+
+        function handleVisibilityChange() {
+            if (document.visibilityState === 'visible') registerSessionActivity();
+        }
+
+        function registerSessionActivity() {
+            if (!currentUser) return;
+            const now = Date.now();
+            if (lastActivityAt && now - lastActivityAt >= SESSION_IDLE_MS) {
+                handleSessionTimeout();
+                return;
+            }
+            lastActivityAt = now;
+            resetSessionIdleTimer();
+            if (now - lastSessionRefreshAt >= SESSION_REFRESH_MS) refreshSessionInBackground();
+        }
+
+        async function refreshSessionInBackground() {
+            if (!currentUser || sessionRefreshPromise) return sessionRefreshPromise;
+            sessionRefreshPromise = (async () => {
+                try {
+                    const response = await fetch('/api/auth/session', {
+                        credentials: 'same-origin',
+                        cache: 'no-store'
+                    });
+                    if (response.status === 401) {
+                        showLoginScreen('Sua sessão terminou após 30 minutos sem atividade.');
+                        return;
+                    }
+                    if (response.ok) lastSessionRefreshAt = Date.now();
+                } catch (_) {
+                    // Uma falha momentânea de rede não encerra uma sessão ainda válida.
+                } finally {
+                    sessionRefreshPromise = null;
+                }
+            })();
+            return sessionRefreshPromise;
+        }
+
+        async function handleSessionTimeout() {
+            if (!currentUser) return;
+            await logoutUser('Sessão encerrada após 30 minutos sem atividade.');
+        }
+
         async function startApp() {
             setPeriodDefaults();
             try {
-                const response = await fetch('/api/auth/session');
+                const response = await fetch('/api/auth/session', {
+                    credentials: 'same-origin',
+                    cache: 'no-store'
+                });
                 const payload = await response.json().catch(() => ({}));
                 if (!response.ok) {
                     showLoginScreen(payload.error || 'Entre para continuar.');
@@ -854,6 +939,7 @@
         }
 
         function showLoginScreen(message = '') {
+            stopSessionActivityTracking();
             currentUser = null;
             const screen = document.getElementById('loginScreen');
             const error = document.getElementById('loginError');
@@ -878,6 +964,7 @@
             const auditNav = document.getElementById('nav-audit');
             auditNav.classList.toggle('hidden', currentUser?.role !== 'admin');
             updatePrivacyButton();
+            startSessionActivityTracking();
         }
 
         async function loginUser(event) {
@@ -909,9 +996,9 @@
             }
         }
 
-        async function logoutUser() {
+        async function logoutUser(message = '') {
             try {
-                await fetch('/api/auth/logout', { method: 'POST' });
+                await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
             } finally {
                 clientesData = [];
                 mensalidadesData = [];
@@ -920,7 +1007,7 @@
                 document.getElementById('loginUsername').value = '';
                 document.getElementById('loginPassword').value = '';
                 switchTab('dashboard');
-                showLoginScreen();
+                showLoginScreen(message);
             }
         }
 
@@ -981,6 +1068,7 @@
         }
 
         function formatCurrency(val) {
+            if (val === null || val === undefined) return 'Valor restrito';
             if (valuesHidden) return 'R$ ••••••';
             return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
         }
@@ -1028,6 +1116,33 @@
             const owner = String(client?.responsible || '').trim().toLowerCase();
             const scope = String(currentUser?.responsibleName || currentUser?.name || '').trim().toLowerCase();
             return Boolean(scope) && owner === scope;
+        }
+
+        function canViewClientFinancials(client) {
+            if (currentUser?.role === 'admin') return true;
+            if (client?.canViewFinancials === true) return true;
+            const scope = String(currentUser?.responsibleName || currentUser?.name || '').trim().toLowerCase();
+            const owner = String(client?.responsible || '').trim().toLowerCase();
+            const collector = String(client?.collector || '').trim().toLowerCase();
+            return Boolean(scope) && (owner === scope || collector === scope);
+        }
+
+        function canViewMensalidadeFinancials(item) {
+            if (currentUser?.role === 'admin' || item?.canViewFinancials === true) return true;
+            return canViewClientFinancials(clientesData.find(client => client.id === item?.clientId));
+        }
+
+        function getClientPaymentStatus(clientId) {
+            const { month, year } = getSelectedPeriod();
+            return mensalidadesData.find(item => item.clientId === clientId && item.month === month && item.year === year)?.status || 'Sem mensalidade';
+        }
+
+        function paymentStatusBadge(status) {
+            if (status === 'Pago') return 'bg-emerald-100 text-emerald-800';
+            if (status === 'Vencido') return 'bg-red-100 text-afisco-red';
+            if (status === 'Parcial') return 'bg-amber-100 text-amber-800';
+            if (status === 'Em aberto') return 'bg-blue-100 text-blue-800';
+            return 'bg-slate-100 text-slate-600';
         }
 
         function formatDate(date) {
@@ -1389,24 +1504,29 @@
 
             filtered.forEach(c => {
                 const canManage = canManageClient(c);
+                const canViewFinancials = canViewClientFinancials(c);
+                const paymentStatus = getClientPaymentStatus(c.id);
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-blue-50/60 transition cursor-pointer";
-                tr.title = 'Clique para abrir a mensalidade deste cliente';
-                tr.onclick = () => openReceiptForClient(c.id);
+                tr.className = `hover:bg-blue-50/60 transition ${canViewFinancials ? 'cursor-pointer' : ''}`;
+                tr.title = canViewFinancials
+                    ? 'Clique para abrir a mensalidade deste cliente'
+                    : 'Os valores deste cliente são restritos ao responsável, recebedor e administrador';
+                if (canViewFinancials) tr.onclick = () => openReceiptForClient(c.id);
                 tr.innerHTML = `
-                    <td class="p-4 font-semibold text-afisco-blue">${escapeHtml(c.name)}<div class="text-[10px] font-medium text-blue-500 mt-1"><i class="fa-solid fa-print"></i> Clique para imprimir</div></td>
+                    <td class="p-4 font-semibold text-afisco-blue">${escapeHtml(c.name)}<div class="mt-1 text-[10px] font-medium ${canViewFinancials ? 'text-blue-500' : 'text-slate-400'}"><i class="fa-solid ${canViewFinancials ? 'fa-print' : 'fa-lock'}"></i> ${canViewFinancials ? 'Clique para imprimir' : 'Somente status disponível'}</div></td>
                     <td class="p-4 text-slate-600">${escapeHtml(c.cnpj)}${c.phone ? `<div class="mt-1 text-xs font-medium text-emerald-700"><i class="fa-brands fa-whatsapp mr-1"></i>${escapeHtml(c.phone)}</div>` : ''}</td>
                     <td class="p-4 text-slate-700 font-medium"><span class="bg-blue-50 text-blue-800 text-xs px-2.5 py-1 rounded-lg">${escapeHtml(c.responsible)}</span>${c.collector ? `<div class="mt-2 text-[10px] font-semibold text-emerald-700"><i class="fa-solid fa-hand-holding-dollar mr-1"></i>Recebimento: ${escapeHtml(c.collector)}</div>` : ''}</td>
-                    <td class="p-4 font-bold text-slate-800">${formatCurrency(c.value)}</td>
+                    <td class="p-4 font-bold ${canViewFinancials ? 'text-slate-800' : 'text-slate-400'}">${canViewFinancials ? formatCurrency(c.value) : '<span class="inline-flex items-center gap-1 text-xs"><i class="fa-solid fa-lock"></i> Restrito</span>'}</td>
                     <td class="p-4 text-slate-600">Dia ${c.dueDay}</td>
                     <td class="p-4">
-                        <span class="px-2.5 py-1 rounded-full text-xs font-bold ${c.status === 'ativo' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'}">
-                            ${c.status.toUpperCase()}
+                        <span class="px-2.5 py-1 rounded-full text-xs font-bold ${paymentStatusBadge(paymentStatus)}">
+                            ${escapeHtml(paymentStatus)}
                         </span>
+                        <div class="mt-1 text-[10px] text-slate-400">Cadastro ${escapeHtml(c.status)}</div>
                     </td>
                     <td class="p-4 text-right space-x-2">
-                        <button onclick="event.stopPropagation(); openWhatsAppForClient(${c.id})" title="Enviar cobrança pelo WhatsApp" class="text-emerald-700 hover:text-emerald-900 text-xs font-semibold px-2 py-1 rounded bg-emerald-50 hover:bg-emerald-100 transition"><i class="fa-brands fa-whatsapp"></i></button>
-                        ${canManage ? `<button onclick="event.stopPropagation(); openClientModal('edit', ${c.id})" title="Editar cliente" class="text-blue-600 hover:text-blue-800 text-xs font-semibold px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 transition"><i class="fa-solid fa-pen"></i></button><button onclick="event.stopPropagation(); openDeleteClientModal(${c.id})" title="Excluir cliente" class="text-red-600 hover:text-red-800 text-xs font-semibold px-2 py-1 rounded bg-red-50 hover:bg-red-100 transition"><i class="fa-solid fa-trash"></i></button>` : '<span class="text-[10px] font-semibold text-slate-400">Somente recebimento</span>'}
+                        ${canViewFinancials ? `<button onclick="event.stopPropagation(); openWhatsAppForClient(${c.id})" title="Enviar cobrança pelo WhatsApp" class="text-emerald-700 hover:text-emerald-900 text-xs font-semibold px-2 py-1 rounded bg-emerald-50 hover:bg-emerald-100 transition"><i class="fa-brands fa-whatsapp"></i></button>` : ''}
+                        ${canManage ? `<button onclick="event.stopPropagation(); openClientModal('edit', ${c.id})" title="Editar cliente" class="text-blue-600 hover:text-blue-800 text-xs font-semibold px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 transition"><i class="fa-solid fa-pen"></i></button><button onclick="event.stopPropagation(); openDeleteClientModal(${c.id})" title="Excluir cliente" class="text-red-600 hover:text-red-800 text-xs font-semibold px-2 py-1 rounded bg-red-50 hover:bg-red-100 transition"><i class="fa-solid fa-trash"></i></button>` : `<span class="text-[10px] font-semibold text-slate-400">${canViewFinancials ? 'Somente recebimento' : 'Consulta de status'}</span>`}
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -1551,6 +1671,7 @@
             filtered.forEach(item => {
                 const cli = clientesData.find(c => c.id === item.clientId);
                 if(!cli) return;
+                const canViewFinancials = canViewMensalidadeFinancials(item);
 
                 let statusBadge = "";
                 if(item.status === 'Pago') statusBadge = "bg-emerald-100 text-emerald-800";
@@ -1561,24 +1682,23 @@
                 const mesesPagos = mensalidadesData.filter(m => m.clientId === cli.id && m.status === 'Pago').length;
 
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-blue-50/60 transition cursor-pointer";
-                tr.title = 'Clique para visualizar e imprimir';
-                tr.onclick = () => openReceiptModal(item.id);
+                tr.className = `hover:bg-blue-50/60 transition ${canViewFinancials ? 'cursor-pointer' : ''}`;
+                tr.title = canViewFinancials ? 'Clique para visualizar e imprimir' : 'Somente o status está disponível para este cliente';
+                if (canViewFinancials) tr.onclick = () => openReceiptModal(item.id);
                 tr.innerHTML = `
-                    <td class="p-4 font-semibold text-afisco-blue">${escapeHtml(cli.name)}<div class="text-[10px] font-medium text-blue-500 mt-1"><i class="fa-solid fa-print"></i> Abrir mensalidade</div></td>
+                    <td class="p-4 font-semibold text-afisco-blue">${escapeHtml(cli.name)}<div class="mt-1 text-[10px] font-medium ${canViewFinancials ? 'text-blue-500' : 'text-slate-400'}"><i class="fa-solid ${canViewFinancials ? 'fa-print' : 'fa-lock'}"></i> ${canViewFinancials ? 'Abrir mensalidade' : 'Valor restrito'}</div></td>
                     <td class="p-4"><span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700"><i class="fa-solid fa-circle-check"></i>${mesesPagos} ${mesesPagos === 1 ? 'mês' : 'meses'}</span></td>
                     <td class="p-4 text-slate-600">${escapeHtml(cli.responsible)}</td>
                     <td class="p-4 text-slate-600">${mesesNomes[item.month]} / ${item.year}</td>
-                    <td class="p-4 font-bold text-slate-800">${formatCurrency(item.previsto)}</td>
+                    <td class="p-4 font-bold ${canViewFinancials ? 'text-slate-800' : 'text-slate-400'}">${canViewFinancials ? formatCurrency(item.previsto) : '<i class="fa-solid fa-lock mr-1"></i> Restrito'}</td>
                     <td class="p-4 text-slate-600">${formatDate(item.due)}</td>
                     <td class="p-4 text-slate-600">${formatDate(item.paidDate)}</td>
-                    <td class="p-4 font-bold text-emerald-600">${formatCurrency(item.paidValue)}</td>
+                    <td class="p-4 font-bold ${canViewFinancials ? 'text-emerald-600' : 'text-slate-400'}">${canViewFinancials ? formatCurrency(item.paidValue) : '<i class="fa-solid fa-lock mr-1"></i> Restrito'}</td>
                     <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge}">${item.status}</span></td>
                     <td class="p-4 text-right">
                         <div class="flex justify-end gap-2">
-                            ${item.status !== 'Pago' ? `<button onclick="event.stopPropagation(); openWhatsAppForClient(${cli.id}, ${item.id})" class="text-emerald-700 hover:text-emerald-900 text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition flex items-center gap-1"><i class="fa-brands fa-whatsapp"></i> Cobrar</button>` : ''}
-                            <button onclick="event.stopPropagation(); openReceiptModal(${item.id})" class="text-slate-700 hover:text-afisco-blue text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 transition flex items-center gap-1"><i class="fa-solid fa-print"></i> Imprimir</button>
-                            <button onclick="event.stopPropagation(); openMensalidadeModal(${item.id})" class="text-blue-600 hover:text-blue-800 text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid ${item.status === 'Pago' ? 'fa-pen-to-square' : 'fa-check'}"></i> ${item.status === 'Pago' ? 'Editar' : 'Dar baixa'}</button>
+                            ${canViewFinancials && item.status !== 'Pago' ? `<button onclick="event.stopPropagation(); openWhatsAppForClient(${cli.id}, ${item.id})" class="text-emerald-700 hover:text-emerald-900 text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition flex items-center gap-1"><i class="fa-brands fa-whatsapp"></i> Cobrar</button>` : ''}
+                            ${canViewFinancials ? `<button onclick="event.stopPropagation(); openReceiptModal(${item.id})" class="text-slate-700 hover:text-afisco-blue text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 transition flex items-center gap-1"><i class="fa-solid fa-print"></i> Imprimir</button><button onclick="event.stopPropagation(); openMensalidadeModal(${item.id})" class="text-blue-600 hover:text-blue-800 text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid ${item.status === 'Pago' ? 'fa-pen-to-square' : 'fa-check'}"></i> ${item.status === 'Pago' ? 'Editar' : 'Dar baixa'}</button>` : '<span class="text-xs font-semibold text-slate-400"><i class="fa-solid fa-lock mr-1"></i>Somente status</span>'}
                         </div>
                     </td>
                 `;
@@ -1593,6 +1713,10 @@
             }
             const client = clientesData.find(item => item.id === clientId);
             if (!client) return;
+            if (!canViewClientFinancials(client)) {
+                showToast('Os valores deste cliente são restritos ao responsável, recebedor e administrador.', 'error');
+                return;
+            }
             let phone = String(client.phone || '').replace(/\D/g, '').replace(/^0+/, '');
             if (phone.length === 10 || phone.length === 11) phone = `55${phone}`;
             if (phone.length < 12 || phone.length > 13) {
@@ -1625,6 +1749,11 @@
         }
 
         function openReceiptForClient(clientId) {
+            const client = clientesData.find(item => item.id === clientId);
+            if (!canViewClientFinancials(client)) {
+                showToast('Você pode consultar apenas o status de pagamento deste cliente.', 'error');
+                return;
+            }
             const { month, year } = getSelectedPeriod();
             const item = mensalidadesData.find(m => m.clientId === clientId && m.month === month && m.year === year);
             if (!item) {
@@ -1637,6 +1766,10 @@
         function openReceiptModal(id) {
             const item = mensalidadesData.find(m => m.id === id);
             if (!item) return;
+            if (!canViewMensalidadeFinancials(item)) {
+                showToast('Você pode consultar apenas o status de pagamento deste cliente.', 'error');
+                return;
+            }
             const cli = clientesData.find(c => c.id === item.clientId);
             if (!cli) return;
 
@@ -1722,6 +1855,10 @@
             }
             const item = mensalidadesData.find(m => m.id === id);
             if(!item) return;
+            if (!canViewMensalidadeFinancials(item)) {
+                showToast('Você pode consultar apenas o status de pagamento deste cliente.', 'error');
+                return;
+            }
             const cli = clientesData.find(c => c.id === item.clientId);
 
             document.getElementById('modalMensalidadeId').value = item.id;
@@ -1786,10 +1923,12 @@
             mensalidadesData.forEach(item => {
                 if(item.status === 'Vencido') {
                     if(!inadMap[item.clientId]) {
-                        inadMap[item.clientId] = { count: 0, totalDevido: 0, oldestDate: item.due };
+                        inadMap[item.clientId] = { count: 0, totalDevido: 0, oldestDate: item.due, canViewFinancials: canViewMensalidadeFinancials(item) };
                     }
                     inadMap[item.clientId].count++;
-                    inadMap[item.clientId].totalDevido += (item.previsto - item.paidValue);
+                    if (inadMap[item.clientId].canViewFinancials) {
+                        inadMap[item.clientId].totalDevido += (item.previsto - item.paidValue);
+                    }
                     if(item.due < inadMap[item.clientId].oldestDate) {
                         inadMap[item.clientId].oldestDate = item.due;
                     }
@@ -1804,7 +1943,7 @@
             }).sort((a, b) => b.totalDevido - a.totalDevido);
 
             let totalGeralDevido = 0;
-            inadList.forEach(item => totalGeralDevido += item.totalDevido);
+            inadList.filter(item => item.canViewFinancials).forEach(item => totalGeralDevido += item.totalDevido);
             document.getElementById('inadTotalDevido').innerText = formatCurrency(totalGeralDevido);
 
             if(inadList.length === 0) {
@@ -1822,7 +1961,7 @@
                     <td class="p-4 font-semibold text-afisco-blue">${escapeHtml(cli.name)}<br><span class="text-xs text-slate-400 font-normal">${escapeHtml(cli.cnpj)}</span></td>
                     <td class="p-4 text-slate-700">${escapeHtml(cli.responsible)}</td>
                     <td class="p-4 font-bold text-afisco-red">${item.count} título(s)</td>
-                    <td class="p-4 font-bold text-afisco-red text-base">${formatCurrency(item.totalDevido)}</td>
+                    <td class="p-4 font-bold ${item.canViewFinancials ? 'text-afisco-red' : 'text-slate-400'} text-base">${item.canViewFinancials ? formatCurrency(item.totalDevido) : '<i class="fa-solid fa-lock mr-1"></i> Restrito'}</td>
                     <td class="p-4 text-slate-600">${formatDate(item.oldestDate)}</td>
                     <td class="p-4 text-right">
                         <button onclick="goToClientFicha(${cli.id})" class="text-blue-600 hover:text-blue-800 text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 transition"><i class="fa-solid fa-eye"></i> Ver Ficha</button>
@@ -1930,6 +2069,7 @@
                 container.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-sm border border-afisco-border text-center text-slate-400">Selecione um cliente acima.</div>`;
                 return;
             }
+            const canViewFinancials = canViewClientFinancials(cli);
 
             const cliMensalidades = mensalidadesData.filter(m => m.clientId === cli.id);
             let totalPagoCli = 0;
@@ -1937,6 +2077,10 @@
             let mesesPagosCli = 0;
 
             cliMensalidades.forEach(m => {
+                if (!canViewFinancials) {
+                    if (m.status === 'Pago') mesesPagosCli++;
+                    return;
+                }
                 if(m.status === 'Pago') {
                     totalPagoCli += m.paidValue;
                     mesesPagosCli++;
@@ -1954,10 +2098,10 @@
                     historyRows += `
                         <tr class="hover:bg-slate-50 transition">
                             <td class="p-3 font-medium">${mesesNomes[m.month]} / ${m.year}</td>
-                            <td class="p-3">${formatCurrency(m.previsto)}</td>
+                            <td class="p-3">${canViewFinancials ? formatCurrency(m.previsto) : '<i class="fa-solid fa-lock mr-1 text-slate-400"></i><span class="text-slate-400">Restrito</span>'}</td>
                             <td class="p-3">${formatDate(m.due)}</td>
                             <td class="p-3">${formatDate(m.paidDate)}</td>
-                            <td class="p-3 font-semibold text-emerald-600">${formatCurrency(m.paidValue)}</td>
+                            <td class="p-3 font-semibold ${canViewFinancials ? 'text-emerald-600' : 'text-slate-400'}">${canViewFinancials ? formatCurrency(m.paidValue) : '<i class="fa-solid fa-lock mr-1"></i>Restrito'}</td>
                             <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-semibold ${m.status === 'Pago' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-afisco-red'}">${m.status}</span></td>
                         </tr>
                     `;
@@ -1977,7 +2121,7 @@
                     </div>
                     <div>
                         <div class="text-xs uppercase font-bold text-slate-400 tracking-wider">Condições Comerciais</div>
-                        <div class="text-xl font-bold text-slate-800 mt-1">${formatCurrency(cli.value)} <span class="text-xs font-normal text-slate-500">/mês</span></div>
+                        <div class="text-xl font-bold ${canViewFinancials ? 'text-slate-800' : 'text-slate-400'} mt-1">${canViewFinancials ? `${formatCurrency(cli.value)} <span class="text-xs font-normal text-slate-500">/mês</span>` : '<i class="fa-solid fa-lock mr-1"></i> Valor restrito'}</div>
                         <p class="text-xs text-slate-600 mt-1">Dia de Vencimento: Todo dia ${cli.dueDay}</p>
                         <p class="text-xs text-slate-600 mt-1">Último reajuste: ${formatDate(cli.lastAdjustment)}</p>
                         <p class="text-xs text-slate-600 mt-1">Status: <span class="font-bold ${cli.status === 'ativo' ? 'text-emerald-600' : 'text-slate-500'}">${cli.status.toUpperCase()}</span></p>
@@ -1986,11 +2130,11 @@
                         <div>
                             <div class="text-xs uppercase font-bold text-slate-400 tracking-wider">Resumo Financeiro Histórico</div>
                             <div class="text-sm font-semibold text-blue-700 mt-2">Meses pagos: ${mesesPagosCli}</div>
-                            <div class="text-sm font-semibold text-emerald-600 mt-1">Total Pago: ${formatCurrency(totalPagoCli)}</div>
-                            <div class="text-sm font-semibold text-afisco-red mt-1">Total em Aberto/Vencido: ${formatCurrency(totalDevendoCli)}</div>
+                            <div class="text-sm font-semibold ${canViewFinancials ? 'text-emerald-600' : 'text-slate-400'} mt-1">Total Pago: ${canViewFinancials ? formatCurrency(totalPagoCli) : 'Restrito'}</div>
+                            <div class="text-sm font-semibold ${canViewFinancials ? 'text-afisco-red' : 'text-slate-400'} mt-1">Total em Aberto/Vencido: ${canViewFinancials ? formatCurrency(totalDevendoCli) : 'Restrito'}</div>
                         </div>
                         <div class="mt-4 flex gap-2">
-                            <button onclick="openWhatsAppForClient(${cli.id})" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-semibold transition"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
+                            ${canViewFinancials ? `<button onclick="openWhatsAppForClient(${cli.id})" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-semibold transition"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>` : '<span class="text-xs font-semibold text-slate-400"><i class="fa-solid fa-lock mr-1"></i>Somente status</span>'}
                             ${canManageClient(cli) ? `<button onclick="openClientModal('edit', ${cli.id})" class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-semibold transition"><i class="fa-solid fa-pen"></i> Editar Cadastro</button>` : ''}
                         </div>
                     </div>

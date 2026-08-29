@@ -8,6 +8,24 @@ const {
 } = require('./_db');
 const { requireAuth, recordAudit } = require('./_auth');
 
+function samePerson(left, right) {
+    const expected = String(right || '').trim().toLowerCase();
+    return Boolean(expected) && String(left || '').trim().toLowerCase() === expected;
+}
+
+function mapMensalidadeForUser(row, user, isAdmin) {
+    const mensalidade = mapMensalidade(row);
+    const canViewFinancials = isAdmin
+        || samePerson(row.client_responsible, user.responsibleName)
+        || samePerson(row.client_collector, user.responsibleName);
+    return {
+        ...mensalidade,
+        previsto: canViewFinancials ? mensalidade.previsto : null,
+        paidValue: canViewFinancials ? mensalidade.paidValue : null,
+        canViewFinancials
+    };
+}
+
 module.exports = async function handler(req, res) {
     try {
         await ensureSchema();
@@ -32,18 +50,13 @@ module.exports = async function handler(req, res) {
                    AND COALESCE(paid_value, 0) < previsto`
             );
 
-            const { rows } = isAdmin
-                ? await pool.query('SELECT * FROM mensalidades ORDER BY year DESC, month DESC, due_date ASC')
-                : await pool.query(
-                    `SELECT m.*
-                     FROM mensalidades m
-                     JOIN clientes c ON c.id = m.client_id
-                     WHERE LOWER(TRIM(c.responsible)) = LOWER(TRIM($1))
-                        OR LOWER(TRIM(c.collector)) = LOWER(TRIM($1))
-                     ORDER BY m.year DESC, m.month DESC, m.due_date ASC`,
-                    [user.responsibleName]
-                );
-            return res.status(200).json(rows.map(mapMensalidade));
+            const { rows } = await pool.query(
+                `SELECT m.*, c.responsible AS client_responsible, c.collector AS client_collector
+                 FROM mensalidades m
+                 JOIN clientes c ON c.id = m.client_id
+                 ORDER BY m.year DESC, m.month DESC, m.due_date ASC`
+            );
+            return res.status(200).json(rows.map(row => mapMensalidadeForUser(row, user, isAdmin)));
         }
 
         if (req.method === 'POST') {
