@@ -5,14 +5,16 @@ const {
     parseBody,
     sendError
 } = require('./_db');
-const { requireAuth } = require('./_auth');
+const { requireAuth, recordAudit } = require('./_auth');
 
 function normalizeCliente(body) {
     return {
         id: body.id ? Number(body.id) : null,
         name: String(body.name || '').trim(),
         cnpj: String(body.cnpj || '').trim(),
+        phone: String(body.phone || body.whatsapp || '').trim().slice(0, 30),
         responsible: String(body.responsible || '').trim(),
+        collector: String(body.collector || '').trim().slice(0, 100),
         value: Number(body.value || 0),
         dueDay: Math.min(31, Math.max(1, Number(body.dueDay ?? body.due_day ?? 10))),
         start: body.start || body.start_date || new Date().toISOString().slice(0, 10),
@@ -33,6 +35,7 @@ module.exports = async function handler(req, res) {
                 : await pool.query(
                     `SELECT * FROM clientes
                      WHERE LOWER(TRIM(responsible)) = LOWER(TRIM($1))
+                        OR LOWER(TRIM(collector)) = LOWER(TRIM($1))
                      ORDER BY name ASC`,
                     [user.responsibleName]
                 );
@@ -41,7 +44,10 @@ module.exports = async function handler(req, res) {
 
         if (req.method === 'POST') {
             const cliente = normalizeCliente(parseBody(req));
-            if (!isAdmin) cliente.responsible = user.responsibleName;
+            if (!isAdmin) {
+                cliente.responsible = user.responsibleName;
+                cliente.collector = '';
+            }
             if (!cliente.name) {
                 return res.status(400).json({ error: 'Informe o nome do cliente.' });
             }
@@ -51,10 +57,10 @@ module.exports = async function handler(req, res) {
                 await db.query('BEGIN');
                 const { rows } = await db.query(
                     `INSERT INTO clientes
-                        (name, cnpj, responsible, value, due_day, start_date, status)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7)
+                        (name, cnpj, phone, responsible, collector, value, due_day, start_date, status)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                      RETURNING *`,
-                    [cliente.name, cliente.cnpj, cliente.responsible, cliente.value, cliente.dueDay, cliente.start, cliente.status]
+                    [cliente.name, cliente.cnpj, cliente.phone, cliente.responsible, cliente.collector, cliente.value, cliente.dueDay, cliente.start, cliente.status]
                 );
 
                 const created = rows[0];
@@ -85,6 +91,11 @@ module.exports = async function handler(req, res) {
                     );
                 }
 
+                await recordAudit(db, user, 'cliente_criado', 'cliente', created.id, {
+                    name: created.name,
+                    responsible: created.responsible,
+                    value: Number(created.value || 0)
+                });
                 await db.query('COMMIT');
                 return res.status(201).json(mapCliente(created));
             } catch (error) {
@@ -97,33 +108,71 @@ module.exports = async function handler(req, res) {
 
         if (req.method === 'PUT') {
             const cliente = normalizeCliente(parseBody(req));
-            if (!isAdmin) cliente.responsible = user.responsibleName;
+            if (!isAdmin) {
+                cliente.responsible = user.responsibleName;
+                cliente.collector = '';
+            }
             if (!cliente.id || !cliente.name) {
                 return res.status(400).json({ error: 'Cliente inválido.' });
             }
 
-            const { rows } = isAdmin
-                ? await pool.query(
-                    `UPDATE clientes
-                     SET name=$1, cnpj=$2, responsible=$3, value=$4,
-                         due_day=$5, start_date=$6, status=$7
-                     WHERE id=$8
-                     RETURNING *`,
-                    [cliente.name, cliente.cnpj, cliente.responsible, cliente.value, cliente.dueDay, cliente.start, cliente.status, cliente.id]
-                )
-                : await pool.query(
-                    `UPDATE clientes
-                     SET name=$1, cnpj=$2, responsible=$3, value=$4,
-                         due_day=$5, start_date=$6, status=$7
-                     WHERE id=$8 AND LOWER(TRIM(responsible)) = LOWER(TRIM($9))
-                     RETURNING *`,
-                    [cliente.name, cliente.cnpj, cliente.responsible, cliente.value, cliente.dueDay, cliente.start, cliente.status, cliente.id, user.responsibleName]
-                );
+            const db = await pool.connect();
+            try {
+                await db.query('BEGIN');
+                const oldResult = isAdmin
+                    ? await db.query('SELECT * FROM clientes WHERE id=$1 FOR UPDATE', [cliente.id])
+                    : await db.query(
+                        `SELECT * FROM clientes
+                         WHERE id=$1 AND LOWER(TRIM(responsible)) = LOWER(TRIM($2))
+                         FOR UPDATE`,
+                        [cliente.id, user.responsibleName]
+                    );
+                if (!oldResult.rows[0]) {
+                    await db.query('ROLLBACK');
+                    return res.status(404).json({ error: 'Cliente não encontrado.' });
+                }
+                if (!isAdmin) cliente.collector = oldResult.rows[0].collector || '';
 
-            if (!rows[0]) {
-                return res.status(404).json({ error: 'Cliente não encontrado.' });
+                const { rows } = await db.query(
+                    `UPDATE clientes
+                     SET name=$1, cnpj=$2, phone=$3, responsible=$4, collector=$5, value=$6,
+                         due_day=$7, start_date=$8, status=$9,
+                         last_adjustment_date=CASE
+                             WHEN value IS DISTINCT FROM $6::numeric THEN CURRENT_DATE
+                             ELSE last_adjustment_date
+                         END
+                     WHERE id=$10
+                     RETURNING *`,
+                    [cliente.name, cliente.cnpj, cliente.phone, cliente.responsible, cliente.collector, cliente.value, cliente.dueDay, cliente.start, cliente.status, cliente.id]
+                );
+                const updated = rows[0];
+                const oldClient = mapCliente(oldResult.rows[0]);
+                const newClient = mapCliente(updated);
+                if (oldClient.value !== newClient.value) {
+                    await db.query(
+                        `UPDATE mensalidades
+                         SET previsto=$1
+                         WHERE client_id=$2
+                           AND status <> 'Pago'
+                           AND (year > EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER
+                                OR (year = EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER
+                                    AND month >= EXTRACT(MONTH FROM CURRENT_DATE)::INTEGER))`,
+                        [newClient.value, updated.id]
+                    );
+                }
+                await recordAudit(db, user, 'cliente_atualizado', 'cliente', updated.id, {
+                    name: updated.name,
+                    before: oldClient,
+                    after: newClient
+                });
+                await db.query('COMMIT');
+                return res.status(200).json(newClient);
+            } catch (error) {
+                await db.query('ROLLBACK');
+                throw error;
+            } finally {
+                db.release();
             }
-            return res.status(200).json(mapCliente(rows[0]));
         }
 
         if (req.method === 'DELETE') {
@@ -136,9 +185,9 @@ module.exports = async function handler(req, res) {
             try {
                 await db.query('BEGIN');
                 const accessResult = isAdmin
-                    ? await db.query('SELECT id FROM clientes WHERE id=$1 FOR UPDATE', [id])
+                    ? await db.query('SELECT * FROM clientes WHERE id=$1 FOR UPDATE', [id])
                     : await db.query(
-                        `SELECT id FROM clientes
+                        `SELECT * FROM clientes
                          WHERE id=$1 AND LOWER(TRIM(responsible)) = LOWER(TRIM($2))
                          FOR UPDATE`,
                         [id, user.responsibleName]
@@ -147,8 +196,13 @@ module.exports = async function handler(req, res) {
                     await db.query('ROLLBACK');
                     return res.status(404).json({ error: 'Cliente não encontrado.' });
                 }
+                const deletedClient = mapCliente(accessResult.rows[0]);
                 await db.query('DELETE FROM mensalidades WHERE client_id=$1', [id]);
                 const result = await db.query('DELETE FROM clientes WHERE id=$1 RETURNING id', [id]);
+                await recordAudit(db, user, 'cliente_excluido', 'cliente', id, {
+                    name: deletedClient.name,
+                    responsible: deletedClient.responsible
+                });
                 await db.query('COMMIT');
                 if (!result.rows[0]) {
                     return res.status(404).json({ error: 'Cliente não encontrado.' });

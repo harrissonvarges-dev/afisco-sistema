@@ -6,7 +6,7 @@ const {
     parseBody,
     sendError
 } = require('./_db');
-const { requireAuth } = require('./_auth');
+const { requireAuth, recordAudit } = require('./_auth');
 
 module.exports = async function handler(req, res) {
     try {
@@ -39,6 +39,7 @@ module.exports = async function handler(req, res) {
                      FROM mensalidades m
                      JOIN clientes c ON c.id = m.client_id
                      WHERE LOWER(TRIM(c.responsible)) = LOWER(TRIM($1))
+                        OR LOWER(TRIM(c.collector)) = LOWER(TRIM($1))
                      ORDER BY m.year DESC, m.month DESC, m.due_date ASC`,
                     [user.responsibleName]
                 );
@@ -69,7 +70,8 @@ module.exports = async function handler(req, res) {
             if (!isAdmin) {
                 const access = await pool.query(
                     `SELECT id FROM clientes
-                     WHERE id=$1 AND LOWER(TRIM(responsible)) = LOWER(TRIM($2))`,
+                     WHERE id=$1
+                       AND LOWER(TRIM(responsible)) = LOWER(TRIM($2))`,
                     [clientId, user.responsibleName]
                 );
                 if (!access.rows[0]) return res.status(404).json({ error: 'Cliente não encontrado.' });
@@ -89,6 +91,12 @@ module.exports = async function handler(req, res) {
             if (!rows[0]) {
                 return res.status(409).json({ error: 'Essa mensalidade já existe.' });
             }
+            await recordAudit(pool, user, 'mensalidade_criada', 'mensalidade', rows[0].id, {
+                clientId,
+                month,
+                year,
+                previsto
+            });
             return res.status(201).json(mapMensalidade(rows[0]));
         }
 
@@ -120,12 +128,21 @@ module.exports = async function handler(req, res) {
                 )
                 : await pool.query(
                     `UPDATE mensalidades m
-                     SET previsto=$1, paid_date=$2, paid_value=$3, status=$4
+                     SET previsto=CASE
+                             WHEN EXISTS (
+                                 SELECT 1 FROM clientes owner
+                                 WHERE owner.id=m.client_id
+                                   AND LOWER(TRIM(owner.responsible)) = LOWER(TRIM($6))
+                             ) THEN $1
+                             ELSE m.previsto
+                         END,
+                         paid_date=$2, paid_value=$3, status=$4
                      WHERE m.id=$5
                        AND EXISTS (
                            SELECT 1 FROM clientes c
                            WHERE c.id=m.client_id
-                             AND LOWER(TRIM(c.responsible)) = LOWER(TRIM($6))
+                             AND (LOWER(TRIM(c.responsible)) = LOWER(TRIM($6))
+                                  OR LOWER(TRIM(c.collector)) = LOWER(TRIM($6)))
                        )
                      RETURNING m.*`,
                     [previsto, paidDate, paidValue, status, id, user.responsibleName]
@@ -134,6 +151,14 @@ module.exports = async function handler(req, res) {
             if (!rows[0]) {
                 return res.status(404).json({ error: 'Mensalidade não encontrada.' });
             }
+            const clientResult = await pool.query('SELECT name FROM clientes WHERE id=$1', [rows[0].client_id]);
+            await recordAudit(pool, user, 'pagamento_atualizado', 'mensalidade', rows[0].id, {
+                clientName: clientResult.rows[0]?.name || '',
+                month: Number(rows[0].month),
+                year: Number(rows[0].year),
+                status: rows[0].status,
+                paidValue: Number(rows[0].paid_value || 0)
+            });
             return res.status(200).json(mapMensalidade(rows[0]));
         }
 
@@ -143,7 +168,7 @@ module.exports = async function handler(req, res) {
                 return res.status(400).json({ error: 'Informe a mensalidade que será excluída.' });
             }
             const result = isAdmin
-                ? await pool.query('DELETE FROM mensalidades WHERE id=$1 RETURNING id', [id])
+                ? await pool.query('DELETE FROM mensalidades WHERE id=$1 RETURNING *', [id])
                 : await pool.query(
                     `DELETE FROM mensalidades m
                      WHERE m.id=$1
@@ -152,12 +177,17 @@ module.exports = async function handler(req, res) {
                            WHERE c.id=m.client_id
                              AND LOWER(TRIM(c.responsible)) = LOWER(TRIM($2))
                        )
-                     RETURNING m.id`,
+                     RETURNING m.*`,
                     [id, user.responsibleName]
                 );
             if (!result.rows[0]) {
                 return res.status(404).json({ error: 'Mensalidade não encontrada.' });
             }
+            await recordAudit(pool, user, 'mensalidade_excluida', 'mensalidade', id, {
+                clientId: Number(result.rows[0].client_id),
+                month: Number(result.rows[0].month),
+                year: Number(result.rows[0].year)
+            });
             return res.status(200).json({ success: true });
         }
 

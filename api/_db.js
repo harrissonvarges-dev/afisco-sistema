@@ -31,13 +31,19 @@ function ensureSchema() {
                         id BIGSERIAL PRIMARY KEY,
                         name TEXT NOT NULL,
                         cnpj TEXT NOT NULL DEFAULT '',
+                        phone TEXT NOT NULL DEFAULT '',
                         responsible TEXT NOT NULL DEFAULT '',
+                        collector TEXT NOT NULL DEFAULT '',
                         value NUMERIC(12, 2) NOT NULL DEFAULT 0,
                         due_day INTEGER NOT NULL DEFAULT 10 CHECK (due_day BETWEEN 1 AND 31),
                         start_date DATE NOT NULL DEFAULT CURRENT_DATE,
+                        last_adjustment_date DATE,
                         status TEXT NOT NULL DEFAULT 'ativo'
                     )
                 `);
+                await db.query("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS phone TEXT NOT NULL DEFAULT ''");
+                await db.query("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS collector TEXT NOT NULL DEFAULT ''");
+                await db.query('ALTER TABLE clientes ADD COLUMN IF NOT EXISTS last_adjustment_date DATE');
                 await db.query(`
                     CREATE TABLE IF NOT EXISTS mensalidades (
                         id BIGSERIAL PRIMARY KEY,
@@ -77,9 +83,22 @@ function ensureSchema() {
                         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                     )
                 `);
+                await db.query(`
+                    CREATE TABLE IF NOT EXISTS auditoria (
+                        id BIGSERIAL PRIMARY KEY,
+                        user_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL,
+                        user_name TEXT NOT NULL,
+                        action TEXT NOT NULL,
+                        entity TEXT NOT NULL,
+                        entity_id TEXT,
+                        details JSONB NOT NULL DEFAULT '{}'::jsonb,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                `);
                 await db.query('CREATE INDEX IF NOT EXISTS mensalidades_periodo_idx ON mensalidades (year, month)');
                 await db.query('CREATE INDEX IF NOT EXISTS mensalidades_cliente_idx ON mensalidades (client_id)');
                 await db.query('CREATE INDEX IF NOT EXISTS sessoes_expiracao_idx ON sessoes (expires_at)');
+                await db.query('CREATE INDEX IF NOT EXISTS auditoria_data_idx ON auditoria (created_at DESC)');
                 await db.query('COMMIT');
             } catch (error) {
                 await db.query('ROLLBACK');
@@ -152,10 +171,13 @@ function mapCliente(row) {
         id: Number(row.id),
         name: row.name,
         cnpj: row.cnpj || '',
+        phone: row.phone || '',
         responsible: row.responsible || '',
+        collector: row.collector || '',
         value: Number(row.value || 0),
         dueDay: Number(row.due_day || 10),
         start: toIsoDate(row.start_date),
+        lastAdjustment: toIsoDate(row.last_adjustment_date),
         status: row.status || 'ativo'
     };
 }

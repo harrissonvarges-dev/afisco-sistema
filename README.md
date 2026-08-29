@@ -16,7 +16,13 @@ Esta versão usa o Neon como fonte de verdade. Cadastros e pagamentos só aparec
 - login individual com sessão segura e senha armazenada por hash;
 - Hélio como administrador com acesso completo;
 - funcionários limitados no servidor aos clientes vinculados ao próprio nome de responsável;
+- compartilhamento opcional por cliente para Nando visualizar, cobrar e dar baixa nas mensalidades de Hélio sem poder editar ou excluir o cadastro;
 - painel de funcionários para criar, desativar e redefinir senhas;
+- histórico de atividades exclusivo do administrador, com logins, clientes, pagamentos e acessos;
+- botão de cobrança pelo WhatsApp com mensagem preenchida automaticamente;
+- aviso de reajuste anual vencido ou com até 30 dias de antecedência;
+- exportação das mensalidades em CSV e backup completo em JSON, somente para o administrador;
+- botão de privacidade no topo para esconder valores e gráficos financeiros, como em aplicativo de banco;
 - o seletor de mês/ano saiu do topo e ficou dentro de **Mensalidades**;
 - o arquivo inicial agora se chama corretamente `index.html`.
 
@@ -29,4 +35,8 @@ Esta versão usa o Neon como fonte de verdade. Cadastros e pagamentos só aparec
 
 No primeiro acesso, o sistema cria Hélio como administrador. Depois, Hélio usa a aba **Funcionários** para cadastrar Harrisson e Nando. Em **Responsável pelos clientes**, use exatamente `Harrisson` ou `Nando`, conforme estiver escrito nos cadastros dos clientes.
 
-As tabelas `clientes` e `mensalidades` são criadas automaticamente caso ainda não existam. A aplicação não inclui dados de demonstração, para não misturá-los com os dados reais do escritório.
+As tabelas `clientes`, `mensalidades`, `usuarios`, `sessoes` e `auditoria` são criadas ou atualizadas automaticamente caso ainda não existam. A aplicação não inclui dados de demonstração, para não misturá-los com os dados reais do escritório.
+
+O WhatsApp apenas abre a conversa com a mensagem pronta; o funcionário revisa e aperta **Enviar**. Nenhuma mensagem é disparada sozinha.
+
+O reajuste anual também não altera valores sozinho: ele é somente um lembrete. Hélio decide quando reajustar e informa manualmente o novo valor no cadastro.

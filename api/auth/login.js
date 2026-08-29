@@ -4,7 +4,8 @@ const {
     normalizeUsername,
     verifyPassword,
     createSession,
-    mapUser
+    mapUser,
+    recordAudit
 } = require('../_auth');
 
 module.exports = async function handler(req, res) {
@@ -51,6 +52,7 @@ module.exports = async function handler(req, res) {
             [user.id]
         );
         await createSession(user.id, res);
+        await recordAudit(pool, mapUser(user), 'login_realizado', 'sessao', user.id, { username: user.username });
         return res.status(200).json({ user: mapUser({ ...user, last_login_at: new Date() }) });
     } catch (error) {
         console.error(error);

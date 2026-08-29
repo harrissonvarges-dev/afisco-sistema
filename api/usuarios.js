@@ -4,7 +4,8 @@ const {
     normalizeUsername,
     validateUsername,
     hashPassword,
-    mapUser
+    mapUser,
+    recordAudit
 } = require('./_auth');
 
 module.exports = async function handler(req, res) {
@@ -36,6 +37,11 @@ module.exports = async function handler(req, res) {
                  RETURNING *`,
                 [name, username, passwordHash, role, responsibleName]
             );
+            await recordAudit(pool, currentUser, 'usuario_criado', 'usuario', rows[0].id, {
+                name: rows[0].name,
+                username: rows[0].username,
+                role: rows[0].role
+            });
             return res.status(201).json(mapUser(rows[0]));
         }
 
@@ -77,6 +83,13 @@ module.exports = async function handler(req, res) {
                 if (!active) await pool.query('DELETE FROM sessoes WHERE user_id=$1', [id]);
             }
             if (!result.rows[0]) return res.status(404).json({ error: 'Funcionário não encontrado.' });
+            await recordAudit(pool, currentUser, 'usuario_atualizado', 'usuario', result.rows[0].id, {
+                name: result.rows[0].name,
+                username: result.rows[0].username,
+                role: result.rows[0].role,
+                active: Boolean(result.rows[0].active),
+                passwordChanged: Boolean(password)
+            });
             return res.status(200).json(mapUser(result.rows[0]));
         }
 

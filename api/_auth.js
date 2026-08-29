@@ -150,6 +150,21 @@ async function requireAuth(req, res, allowedRoles = null) {
     return user;
 }
 
+async function recordAudit(db, user, action, entity, entityId = null, details = {}) {
+    await db.query(
+        `INSERT INTO auditoria (user_id, user_name, action, entity, entity_id, details)
+         VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
+        [
+            user?.id || null,
+            user?.name || 'Sistema',
+            String(action),
+            String(entity),
+            entityId === null || entityId === undefined ? null : String(entityId),
+            JSON.stringify(details || {})
+        ]
+    );
+}
+
 module.exports = {
     pool,
     ensureAdminBootstrap,
@@ -161,5 +176,6 @@ module.exports = {
     destroySession,
     getSessionUser,
     requireAuth,
-    mapUser
+    mapUser,
+    recordAudit
 };
