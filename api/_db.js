@@ -21,33 +21,72 @@ function ensureSchema() {
 
     if (!schemaPromise) {
         schemaPromise = (async () => {
-            await pool.query(`
-                CREATE TABLE IF NOT EXISTS clientes (
-                    id BIGSERIAL PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    cnpj TEXT NOT NULL DEFAULT '',
-                    responsible TEXT NOT NULL DEFAULT '',
-                    value NUMERIC(12, 2) NOT NULL DEFAULT 0,
-                    due_day INTEGER NOT NULL DEFAULT 10 CHECK (due_day BETWEEN 1 AND 31),
-                    start_date DATE NOT NULL DEFAULT CURRENT_DATE,
-                    status TEXT NOT NULL DEFAULT 'ativo'
-                )
-            `);
-            await pool.query(`
-                CREATE TABLE IF NOT EXISTS mensalidades (
-                    id BIGSERIAL PRIMARY KEY,
-                    client_id BIGINT NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
-                    month INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),
-                    year INTEGER NOT NULL,
-                    previsto NUMERIC(12, 2) NOT NULL DEFAULT 0,
-                    due_date DATE NOT NULL,
-                    paid_date DATE,
-                    paid_value NUMERIC(12, 2) NOT NULL DEFAULT 0,
-                    status TEXT NOT NULL DEFAULT 'Em aberto'
-                )
-            `);
-            await pool.query('CREATE INDEX IF NOT EXISTS mensalidades_periodo_idx ON mensalidades (year, month)');
-            await pool.query('CREATE INDEX IF NOT EXISTS mensalidades_cliente_idx ON mensalidades (client_id)');
+            const db = await pool.connect();
+            try {
+                await db.query('BEGIN');
+                // Evita que duas funções frias do Vercel tentem criar o mesmo índice simultaneamente.
+                await db.query('SELECT pg_advisory_xact_lock($1, $2)', [205032, 1]);
+                await db.query(`
+                    CREATE TABLE IF NOT EXISTS clientes (
+                        id BIGSERIAL PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        cnpj TEXT NOT NULL DEFAULT '',
+                        responsible TEXT NOT NULL DEFAULT '',
+                        value NUMERIC(12, 2) NOT NULL DEFAULT 0,
+                        due_day INTEGER NOT NULL DEFAULT 10 CHECK (due_day BETWEEN 1 AND 31),
+                        start_date DATE NOT NULL DEFAULT CURRENT_DATE,
+                        status TEXT NOT NULL DEFAULT 'ativo'
+                    )
+                `);
+                await db.query(`
+                    CREATE TABLE IF NOT EXISTS mensalidades (
+                        id BIGSERIAL PRIMARY KEY,
+                        client_id BIGINT NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
+                        month INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),
+                        year INTEGER NOT NULL,
+                        previsto NUMERIC(12, 2) NOT NULL DEFAULT 0,
+                        due_date DATE NOT NULL,
+                        paid_date DATE,
+                        paid_value NUMERIC(12, 2) NOT NULL DEFAULT 0,
+                        status TEXT NOT NULL DEFAULT 'Em aberto'
+                    )
+                `);
+                await db.query(`
+                    CREATE TABLE IF NOT EXISTS usuarios (
+                        id BIGSERIAL PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        username TEXT NOT NULL UNIQUE,
+                        password_hash TEXT NOT NULL,
+                        role TEXT NOT NULL DEFAULT 'funcionario' CHECK (role IN ('admin', 'funcionario')),
+                        responsible_name TEXT,
+                        active BOOLEAN NOT NULL DEFAULT TRUE,
+                        failed_attempts INTEGER NOT NULL DEFAULT 0,
+                        locked_until TIMESTAMPTZ,
+                        last_login_at TIMESTAMPTZ,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                `);
+                await db.query('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS responsible_name TEXT');
+                await db.query(`
+                    CREATE TABLE IF NOT EXISTS sessoes (
+                        id BIGSERIAL PRIMARY KEY,
+                        token_hash CHAR(64) NOT NULL UNIQUE,
+                        user_id BIGINT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                        expires_at TIMESTAMPTZ NOT NULL,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                `);
+                await db.query('CREATE INDEX IF NOT EXISTS mensalidades_periodo_idx ON mensalidades (year, month)');
+                await db.query('CREATE INDEX IF NOT EXISTS mensalidades_cliente_idx ON mensalidades (client_id)');
+                await db.query('CREATE INDEX IF NOT EXISTS sessoes_expiracao_idx ON sessoes (expires_at)');
+                await db.query('COMMIT');
+            } catch (error) {
+                await db.query('ROLLBACK');
+                throw error;
+            } finally {
+                db.release();
+            }
         })().catch(error => {
             schemaPromise = undefined;
             throw error;

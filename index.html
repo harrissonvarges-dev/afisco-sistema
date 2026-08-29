@@ -43,12 +43,15 @@
         // O Neon é a única fonte de verdade. A tela só muda depois que a API confirma o salvamento.
         let clientesData = [];
         let mensalidadesData = [];
+        let usuariosData = [];
+        let currentUser = null;
         let appLoaded = false;
 
         async function apiRequest(url, options = {}) {
             const response = await fetch(url, options);
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) {
+                if (response.status === 401 && !url.includes('/api/auth/login')) showLoginScreen();
                 throw new Error(payload.error || 'Não foi possível concluir a operação.');
             }
             return payload;
@@ -112,7 +115,7 @@
             }
         }
 
-        window.addEventListener('load', () => carregarDadosDoBanco());
+        window.addEventListener('load', startApp);
     </script>
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
@@ -148,6 +151,41 @@
 </head>
 <body class="bg-afisco-grayBg min-h-screen flex flex-col selection:bg-afisco-blue selection:text-white">
 
+    <div id="loginScreen" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950 p-4">
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(29,78,216,0.28),_transparent_45%),radial-gradient(circle_at_bottom_right,_rgba(225,29,72,0.18),_transparent_40%)]"></div>
+        <div class="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <div class="h-2 bg-afisco-red"></div>
+            <div class="p-7 sm:p-9">
+                <div class="mb-7 flex flex-col items-center text-center">
+                    <img src="afisco-logo.png" alt="Afisco Contabilidade" class="h-24 w-56 object-contain">
+                    <h2 class="mt-4 text-2xl font-black text-afisco-blue">Acesso ao sistema</h2>
+                    <p class="mt-1 text-sm text-slate-500">Entre com seu usuário e senha da Afisco.</p>
+                </div>
+                <form onsubmit="loginUser(event)" class="space-y-4">
+                    <div>
+                        <label for="loginUsername" class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-600">Usuário</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-user absolute left-4 top-3.5 text-slate-400"></i>
+                            <input id="loginUsername" autocomplete="username" required class="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm outline-none focus:border-afisco-blue focus:ring-2 focus:ring-blue-100" placeholder="Seu usuário">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="loginPassword" class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-600">Senha</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-lock absolute left-4 top-3.5 text-slate-400"></i>
+                            <input id="loginPassword" type="password" autocomplete="current-password" required class="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm outline-none focus:border-afisco-blue focus:ring-2 focus:ring-blue-100" placeholder="Sua senha">
+                        </div>
+                    </div>
+                    <p id="loginError" class="hidden rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-700" role="alert"></p>
+                    <button id="loginButton" type="submit" class="w-full rounded-xl bg-afisco-blue px-4 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-blue-800 disabled:opacity-60">
+                        <i class="fa-solid fa-right-to-bracket mr-2"></i> Entrar
+                    </button>
+                </form>
+                <p class="mt-6 text-center text-[10px] text-slate-400">Acesso restrito aos colaboradores autorizados.</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Header / Top Navigation -->
     <header class="bg-afisco-blue text-white shadow-md sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
@@ -164,11 +202,20 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-3 bg-blue-950/60 px-4 py-2.5 rounded-xl border border-blue-900/50" aria-live="polite">
-                <span id="connectionDot" class="w-2 h-2 rounded-full bg-amber-300 animate-pulse"></span>
-                <div>
-                    <div id="connectionStatus" class="text-xs font-semibold text-white">Conectando ao Neon</div>
-                    <div class="text-[10px] text-blue-300 hidden sm:block">Salvamento automático e seguro</div>
+            <div class="flex items-center gap-2">
+                <div class="hidden md:flex items-center gap-3 bg-blue-950/60 px-4 py-2.5 rounded-xl border border-blue-900/50" aria-live="polite">
+                    <span id="connectionDot" class="w-2 h-2 rounded-full bg-amber-300 animate-pulse"></span>
+                    <div>
+                        <div id="connectionStatus" class="text-xs font-semibold text-white">Conectando ao Neon</div>
+                        <div class="text-[10px] text-blue-300">Salvamento automático e seguro</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 rounded-xl border border-blue-900/50 bg-blue-950/60 px-3 py-2">
+                    <div class="hidden sm:block text-right">
+                        <div id="currentUserName" class="text-xs font-bold text-white">Usuário</div>
+                        <div id="currentUserRole" class="text-[10px] text-blue-300">Funcionário</div>
+                    </div>
+                    <button onclick="logoutUser()" title="Sair do sistema" class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-900 text-blue-200 transition hover:bg-afisco-red hover:text-white"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
                 </div>
             </div>
         </div>
@@ -194,6 +241,9 @@
                 </button>
                 <button onclick="switchTab('ficha')" id="nav-ficha" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 text-blue-200 hover:bg-blue-900 hover:text-white">
                     <i class="fa-solid fa-id-card"></i> Ficha do Cliente
+                </button>
+                <button onclick="switchTab('users')" id="nav-users" class="tab-btn hidden px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 text-blue-200 hover:bg-blue-900 hover:text-white">
+                    <i class="fa-solid fa-user-shield"></i> Funcionários
                 </button>
             </div>
         </nav>
@@ -538,6 +588,28 @@
             <div id="fichaContentContainer" class="space-y-6"></div>
         </div>
 
+        <!-- ================= 7. TAB: FUNCIONÁRIOS (ADMIN) ================= -->
+        <div id="tab-users" class="tab-content space-y-6 hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-afisco-border">
+                <div>
+                    <h2 class="text-xl font-bold text-afisco-blue flex items-center gap-2"><i class="fa-solid fa-user-shield text-afisco-red"></i> Acessos dos Funcionários</h2>
+                    <p class="text-xs text-afisco-textMuted mt-1">Hélio administra todos os acessos; cada funcionário visualiza apenas seus próprios clientes.</p>
+                </div>
+                <button onclick="openUserModal('new')" class="bg-afisco-blue hover:bg-blue-800 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition shadow flex items-center gap-2"><i class="fa-solid fa-user-plus"></i> Novo Funcionário</button>
+            </div>
+            <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-xs text-blue-800">
+                <i class="fa-solid fa-circle-info mr-1"></i> O campo <strong>Responsável pelos clientes</strong> deve ser igual ao nome usado no cadastro dos clientes, por exemplo: Harrisson ou Nando.
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm border border-afisco-border overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead><tr class="bg-slate-50 text-slate-600 text-xs uppercase font-semibold border-b border-slate-200"><th class="p-4">Nome</th><th class="p-4">Usuário</th><th class="p-4">Perfil</th><th class="p-4">Clientes de</th><th class="p-4">Status</th><th class="p-4">Último acesso</th><th class="p-4 text-right">Ações</th></tr></thead>
+                        <tbody id="usersTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
     </main>
 
     <!-- Modal de Cadastro / Edição de Cliente -->
@@ -591,6 +663,28 @@
                 <button onclick="closeClientModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">Cancelar</button>
                 <button id="saveClientButton" onclick="saveClientFromModal()" class="px-4 py-2 bg-afisco-blue hover:bg-blue-800 disabled:opacity-60 text-white text-xs font-semibold rounded-xl transition">Salvar Cliente</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal de funcionário -->
+    <div id="userModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-4">
+            <div class="flex justify-between items-center border-b pb-3">
+                <div><h3 id="userModalTitle" class="font-bold text-afisco-blue text-lg">Novo Funcionário</h3><p class="text-xs text-slate-500">O funcionário verá somente os clientes vinculados ao nome indicado.</p></div>
+                <button onclick="closeUserModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <input type="hidden" id="modalUserId">
+            <div class="space-y-3">
+                <div><label class="block text-xs font-semibold text-slate-600 mb-1">Nome completo</label><input id="modalUserName" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue" placeholder="Ex: Harrisson"></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Usuário de acesso</label><input id="modalUsername" autocomplete="off" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue" placeholder="Ex: harrisson"></div>
+                    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Perfil</label><select id="modalUserRole" onchange="updateUserScopeField()" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue"><option value="funcionario">Funcionário</option><option value="admin">Administrador</option></select></div>
+                </div>
+                <div id="userScopeField"><label class="block text-xs font-semibold text-slate-600 mb-1">Responsável pelos clientes</label><input id="modalUserResponsible" class="w-full px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue" placeholder="Digite exatamente como está no cadastro: Harrisson ou Nando"><p class="mt-1 text-[10px] text-slate-500">Esse nome controla quais clientes o funcionário poderá visualizar.</p></div>
+                <div><label class="block text-xs font-semibold text-slate-600 mb-1">Senha <span id="passwordOptionalLabel" class="font-normal text-slate-400"></span></label><input id="modalUserPassword" type="password" autocomplete="new-password" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue" placeholder="Mínimo de 8 caracteres"></div>
+                <label id="userActiveField" class="hidden items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700"><input id="modalUserActive" type="checkbox" class="h-4 w-4 rounded" checked> Acesso ativo</label>
+            </div>
+            <div class="flex justify-end gap-2 pt-3 border-t"><button onclick="closeUserModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">Cancelar</button><button id="saveUserButton" onclick="saveUserFromModal()" class="px-4 py-2 bg-afisco-blue hover:bg-blue-800 disabled:opacity-60 text-white text-xs font-semibold rounded-xl transition">Salvar Acesso</button></div>
         </div>
     </div>
 
@@ -684,6 +778,90 @@
         let analiseLineChartObj = null;
         let analiseInadChartObj = null;
 
+        async function startApp() {
+            setPeriodDefaults();
+            try {
+                const response = await fetch('/api/auth/session');
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    showLoginScreen(payload.error || 'Entre para continuar.');
+                    return;
+                }
+                currentUser = payload.user;
+                showAppScreen();
+                await carregarDadosDoBanco();
+            } catch (error) {
+                showLoginScreen('Não foi possível verificar o acesso. Tente novamente.');
+            }
+        }
+
+        function showLoginScreen(message = '') {
+            currentUser = null;
+            const screen = document.getElementById('loginScreen');
+            const error = document.getElementById('loginError');
+            if (screen) screen.classList.remove('hidden');
+            if (error) {
+                error.innerText = message;
+                error.classList.toggle('hidden', !message || message === 'Sessão não encontrada.');
+            }
+            if (document.getElementById('loginPassword')) document.getElementById('loginPassword').value = '';
+            setTimeout(() => document.getElementById('loginUsername')?.focus(), 50);
+        }
+
+        function showAppScreen() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('loginError').classList.add('hidden');
+            document.getElementById('currentUserName').innerText = currentUser?.name || 'Usuário';
+            document.getElementById('currentUserRole').innerText = currentUser?.role === 'admin'
+                ? 'Administrador · acesso completo'
+                : `Funcionário · clientes de ${currentUser?.responsibleName || currentUser?.name}`;
+            const usersNav = document.getElementById('nav-users');
+            usersNav.classList.toggle('hidden', currentUser?.role !== 'admin');
+        }
+
+        async function loginUser(event) {
+            event.preventDefault();
+            const button = document.getElementById('loginButton');
+            const error = document.getElementById('loginError');
+            button.disabled = true;
+            button.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Entrando...';
+            error.classList.add('hidden');
+            try {
+                const payload = await apiRequest('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: document.getElementById('loginUsername').value,
+                        password: document.getElementById('loginPassword').value
+                    })
+                });
+                currentUser = payload.user;
+                document.getElementById('loginPassword').value = '';
+                showAppScreen();
+                await carregarDadosDoBanco();
+            } catch (loginError) {
+                error.innerText = loginError.message;
+                error.classList.remove('hidden');
+            } finally {
+                button.disabled = false;
+                button.innerHTML = '<i class="fa-solid fa-right-to-bracket mr-2"></i> Entrar';
+            }
+        }
+
+        async function logoutUser() {
+            try {
+                await fetch('/api/auth/logout', { method: 'POST' });
+            } finally {
+                clientesData = [];
+                mensalidadesData = [];
+                usuariosData = [];
+                document.getElementById('loginUsername').value = '';
+                document.getElementById('loginPassword').value = '';
+                switchTab('dashboard');
+                showLoginScreen();
+            }
+        }
+
         function initApp() {
             renderDashboard();
             renderClientsTable();
@@ -707,11 +885,16 @@
         }
 
         function switchTab(tabId) {
+            if (tabId === 'users' && currentUser?.role !== 'admin') {
+                showToast('Apenas Hélio pode gerenciar os acessos.', 'error');
+                return;
+            }
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.getElementById('tab-' + tabId).classList.remove('hidden');
 
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.className = "tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 text-blue-200 hover:bg-blue-900 hover:text-white";
+                if (btn.id === 'nav-users' && currentUser?.role !== 'admin') btn.classList.add('hidden');
             });
             const activeBtn = document.getElementById('nav-' + tabId);
             if(activeBtn) {
@@ -724,6 +907,7 @@
             if(tabId === 'inadimplencia') renderInadimplenciaTable();
             if(tabId === 'analise') renderAnaliseTab();
             if(tabId === 'ficha') renderClientFicha();
+            if(tabId === 'users') loadUsers();
         }
 
         function getSelectedPeriod() {
@@ -833,6 +1017,118 @@
             });
         }
 
+        // ================= ACESSOS DOS FUNCIONÁRIOS =================
+        async function loadUsers() {
+            if (currentUser?.role !== 'admin') return;
+            const tbody = document.getElementById('usersTableBody');
+            tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Carregando acessos...</td></tr>';
+            try {
+                usuariosData = await apiRequest('/api/usuarios');
+                renderUsersTable();
+            } catch (error) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-red-600">${escapeHtml(error.message)}</td></tr>`;
+            }
+        }
+
+        function renderUsersTable() {
+            const tbody = document.getElementById('usersTableBody');
+            if (!usuariosData.length) {
+                tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-400">Nenhum acesso cadastrado.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = usuariosData.map(user => {
+                const isSelf = user.id === currentUser?.id;
+                const lastLogin = user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString('pt-BR') : 'Nunca acessou';
+                return `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="p-4 font-semibold text-afisco-blue">${escapeHtml(user.name)}${isSelf ? '<span class="ml-2 text-[10px] text-blue-500">VOCÊ</span>' : ''}</td>
+                        <td class="p-4 text-slate-600">${escapeHtml(user.username)}</td>
+                        <td class="p-4"><span class="rounded-full px-2.5 py-1 text-xs font-bold ${user.role === 'admin' ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-700'}">${user.role === 'admin' ? 'Administrador' : 'Funcionário'}</span></td>
+                        <td class="p-4 text-slate-600">${user.role === 'admin' ? 'Todos os clientes' : escapeHtml(user.responsibleName || user.name)}</td>
+                        <td class="p-4"><span class="rounded-full px-2.5 py-1 text-xs font-bold ${user.active ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}">${user.active ? 'Ativo' : 'Inativo'}</span></td>
+                        <td class="p-4 text-xs text-slate-500">${lastLogin}</td>
+                        <td class="p-4"><div class="flex justify-end gap-2"><button onclick="openUserModal('edit', ${user.id})" class="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"><i class="fa-solid fa-pen mr-1"></i>Editar</button>${isSelf ? '' : `<button onclick="toggleUserActive(${user.id}, ${!user.active})" class="rounded-lg px-3 py-1.5 text-xs font-semibold ${user.active ? 'bg-red-50 text-red-700 hover:bg-red-100' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}">${user.active ? 'Desativar' : 'Ativar'}</button>`}</div></td>
+                    </tr>`;
+            }).join('');
+        }
+
+        function openUserModal(mode, id = null) {
+            const isEdit = mode === 'edit';
+            const user = isEdit ? usuariosData.find(item => item.id === id) : null;
+            if (isEdit && !user) return;
+            document.getElementById('userModalTitle').innerText = isEdit ? 'Editar Acesso' : 'Novo Funcionário';
+            document.getElementById('modalUserId').value = user?.id || '';
+            document.getElementById('modalUserName').value = user?.name || '';
+            document.getElementById('modalUsername').value = user?.username || '';
+            document.getElementById('modalUsername').disabled = isEdit;
+            document.getElementById('modalUserRole').value = user?.role || 'funcionario';
+            document.getElementById('modalUserResponsible').value = user?.responsibleName || user?.name || '';
+            document.getElementById('modalUserPassword').value = '';
+            document.getElementById('modalUserActive').checked = user?.active ?? true;
+            document.getElementById('userActiveField').classList.toggle('hidden', !isEdit);
+            document.getElementById('userActiveField').classList.toggle('flex', isEdit);
+            document.getElementById('passwordOptionalLabel').innerText = isEdit ? '(deixe vazio para manter a atual)' : '';
+            updateUserScopeField();
+            document.getElementById('userModal').classList.remove('hidden');
+        }
+
+        function updateUserScopeField() {
+            const isAdmin = document.getElementById('modalUserRole').value === 'admin';
+            document.getElementById('userScopeField').classList.toggle('hidden', isAdmin);
+        }
+
+        function closeUserModal() {
+            document.getElementById('userModal').classList.add('hidden');
+        }
+
+        async function saveUserFromModal() {
+            const id = document.getElementById('modalUserId').value;
+            const name = document.getElementById('modalUserName').value.trim();
+            const username = document.getElementById('modalUsername').value.trim();
+            const role = document.getElementById('modalUserRole').value;
+            const responsibleName = document.getElementById('modalUserResponsible').value.trim() || name;
+            const password = document.getElementById('modalUserPassword').value;
+            const active = document.getElementById('modalUserActive').checked;
+            if (!name || (!id && !username) || (!id && password.length < 8)) {
+                showToast('Preencha o nome, usuário e uma senha de pelo menos 8 caracteres.', 'error');
+                return;
+            }
+            const button = document.getElementById('saveUserButton');
+            button.disabled = true;
+            button.innerText = 'Salvando...';
+            try {
+                await apiRequest('/api/usuarios', {
+                    method: id ? 'PUT' : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: id || undefined, name, username, role, responsibleName, password, active })
+                });
+                closeUserModal();
+                await loadUsers();
+                showToast(id ? 'Acesso atualizado.' : 'Funcionário cadastrado com sucesso.');
+            } catch (error) {
+                showToast(error.message, 'error');
+            } finally {
+                button.disabled = false;
+                button.innerText = 'Salvar Acesso';
+            }
+        }
+
+        async function toggleUserActive(id, active) {
+            const user = usuariosData.find(item => item.id === id);
+            if (!user || !confirm(`${active ? 'Ativar' : 'Desativar'} o acesso de ${user.name}?`)) return;
+            try {
+                await apiRequest('/api/usuarios', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...user, active })
+                });
+                await loadUsers();
+                showToast(`Acesso ${active ? 'ativado' : 'desativado'}.`);
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
         // ================= CLIENTES LOGIC =================
         function renderClientsTable() {
             const search = document.getElementById('clientSearchInput').value.toLowerCase();
@@ -878,12 +1174,15 @@
 
         function openClientModal(mode, id = null) {
             document.getElementById('clientModal').classList.remove('hidden');
+            const responsibleInput = document.getElementById('modalClientResponsible');
+            responsibleInput.disabled = currentUser?.role !== 'admin';
+            responsibleInput.title = currentUser?.role === 'admin' ? '' : 'Seu acesso cadastra clientes somente para você.';
             if(mode === 'new') {
                 document.getElementById('clientModalTitle').innerText = "Novo Cliente";
                 document.getElementById('modalClientId').value = "";
                 document.getElementById('modalClientName').value = "";
                 document.getElementById('modalClientCnpj').value = "";
-                document.getElementById('modalClientResponsible').value = "";
+                document.getElementById('modalClientResponsible').value = currentUser?.role === 'admin' ? "" : (currentUser?.responsibleName || currentUser?.name || '');
                 document.getElementById('modalClientValue').value = "";
                 document.getElementById('modalClientDueDay').value = "10";
                 document.getElementById('modalClientStart').value = new Date().toISOString().split('T')[0];
