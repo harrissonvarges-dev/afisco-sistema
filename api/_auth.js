@@ -47,7 +47,8 @@ function parseCookies(req) {
 
 function serializeCookie(value, maxAge) {
     const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-    return `${COOKIE_NAME}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
+    const expires = new Date(Date.now() + Math.max(0, maxAge) * 1000).toUTCString();
+    return `${COOKIE_NAME}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}; Expires=${expires}; Priority=High${secure}`;
 }
 
 function ensureAdminBootstrap() {

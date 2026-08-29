@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="any" href="/afisco-favicon.png?v=3">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Afisco Contabilidade - Gestão de Mensalidades</title>
@@ -54,6 +54,8 @@
         let lastActivityAt = 0;
         let lastSessionRefreshAt = 0;
         let sessionRefreshPromise = null;
+        let sessionCheckPromise = null;
+        let sessionCheckTimer = null;
         try {
             valuesHidden = localStorage.getItem('afisco_values_hidden') === 'true';
         } catch (_) {
@@ -169,7 +171,20 @@
 </head>
 <body class="bg-afisco-grayBg min-h-screen flex flex-col selection:bg-afisco-blue selection:text-white">
 
-    <div id="loginScreen" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950 p-4">
+    <div id="sessionLoadingScreen" class="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950 p-4">
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(29,78,216,0.28),_transparent_45%),radial-gradient(circle_at_bottom_right,_rgba(225,29,72,0.18),_transparent_40%)]"></div>
+        <div class="relative flex w-full max-w-sm flex-col items-center rounded-3xl bg-white p-8 text-center shadow-2xl">
+            <img src="afisco-favicon.png" alt="Afisco Contabilidade" class="h-20 w-20 rounded-full object-contain">
+            <div class="mt-5 h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-afisco-blue"></div>
+            <h2 class="mt-4 text-lg font-black text-afisco-blue">Verificando sua sessão</h2>
+            <p id="sessionLoadingMessage" class="mt-1 text-sm text-slate-500">Aguarde um instante. Você não precisa entrar novamente ao atualizar a página.</p>
+            <button id="sessionRetryButton" onclick="retrySessionCheck()" class="mt-5 hidden rounded-xl bg-afisco-blue px-4 py-2.5 text-xs font-bold text-white transition hover:bg-blue-800">
+                <i class="fa-solid fa-rotate-right mr-1"></i> Tentar novamente
+            </button>
+        </div>
+    </div>
+
+    <div id="loginScreen" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-slate-950 p-4">
         <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(29,78,216,0.28),_transparent_45%),radial-gradient(circle_at_bottom_right,_rgba(225,29,72,0.18),_transparent_40%)]"></div>
         <div class="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
             <div class="h-2 bg-afisco-red"></div>
@@ -918,29 +933,63 @@
             await logoutUser('Sessão encerrada após 30 minutos sem atividade.');
         }
 
+        function showSessionLoading(message = '', allowRetry = false) {
+            const screen = document.getElementById('sessionLoadingScreen');
+            const login = document.getElementById('loginScreen');
+            const messageElement = document.getElementById('sessionLoadingMessage');
+            const retryButton = document.getElementById('sessionRetryButton');
+            if (screen) screen.classList.remove('hidden');
+            if (login) login.classList.add('hidden');
+            if (messageElement && message) messageElement.innerText = message;
+            if (retryButton) retryButton.classList.toggle('hidden', !allowRetry);
+        }
+
+        function retrySessionCheck() {
+            clearTimeout(sessionCheckTimer);
+            sessionCheckTimer = null;
+            startApp();
+        }
+
         async function startApp() {
+            if (sessionCheckPromise) return sessionCheckPromise;
             setPeriodDefaults();
-            try {
-                const response = await fetch('/api/auth/session', {
-                    credentials: 'same-origin',
-                    cache: 'no-store'
-                });
-                const payload = await response.json().catch(() => ({}));
-                if (!response.ok) {
-                    showLoginScreen(payload.error || 'Entre para continuar.');
-                    return;
+            showSessionLoading('Aguarde um instante. Você não precisa entrar novamente ao atualizar a página.');
+            sessionCheckPromise = (async () => {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 12000);
+                try {
+                    const response = await fetch('/api/auth/session', {
+                        credentials: 'same-origin',
+                        cache: 'no-store',
+                        signal: controller.signal
+                    });
+                    const payload = await response.json().catch(() => ({}));
+                    if (response.status === 401) {
+                        showLoginScreen(payload.error || 'Entre para continuar.');
+                        return;
+                    }
+                    if (!response.ok) throw new Error(payload.error || 'Conexão indisponível.');
+                    currentUser = payload.user;
+                    showAppScreen();
+                    await carregarDadosDoBanco();
+                } catch (_) {
+                    showSessionLoading('Não foi possível falar com o servidor agora. Sua sessão não foi encerrada; vamos tentar novamente.', true);
+                    clearTimeout(sessionCheckTimer);
+                    sessionCheckTimer = setTimeout(startApp, 5000);
+                } finally {
+                    clearTimeout(timeout);
+                    sessionCheckPromise = null;
                 }
-                currentUser = payload.user;
-                showAppScreen();
-                await carregarDadosDoBanco();
-            } catch (error) {
-                showLoginScreen('Não foi possível verificar o acesso. Tente novamente.');
-            }
+            })();
+            return sessionCheckPromise;
         }
 
         function showLoginScreen(message = '') {
+            clearTimeout(sessionCheckTimer);
+            sessionCheckTimer = null;
             stopSessionActivityTracking();
             currentUser = null;
+            document.getElementById('sessionLoadingScreen')?.classList.add('hidden');
             const screen = document.getElementById('loginScreen');
             const error = document.getElementById('loginError');
             if (screen) screen.classList.remove('hidden');
@@ -953,6 +1002,9 @@
         }
 
         function showAppScreen() {
+            clearTimeout(sessionCheckTimer);
+            sessionCheckTimer = null;
+            document.getElementById('sessionLoadingScreen')?.classList.add('hidden');
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('loginError').classList.add('hidden');
             document.getElementById('currentUserName').innerText = currentUser?.name || 'Usuário';

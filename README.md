@@ -15,6 +15,8 @@ Esta versão usa o Neon como fonte de verdade. Cadastros e pagamentos só aparec
 - novo logo da Afisco no sistema e no documento de impressão;
 - login individual com sessão segura, senha armazenada por hash e permanência ao atualizar a página;
 - encerramento automático somente após 30 minutos sem atividade ou quando a pessoa clicar em **Sair**;
+- ao atualizar a página, o sistema verifica e recupera a sessão; falhas momentâneas de conexão mostram uma tela de reconexão em vez do formulário de login;
+- novo favicon circular da Afisco, com fundo transparente e endereço versionado para evitar o ícone antigo em cache;
 - Hélio como administrador com acesso completo;
 - funcionários veem a lista e o status de pagamento de todos os clientes, mas o servidor só entrega os valores dos clientes pelos quais são responsáveis ou recebedores;
 - compartilhamento opcional por cliente para Nando visualizar, cobrar e dar baixa nas mensalidades de Hélio sem poder editar ou excluir o cadastro;
