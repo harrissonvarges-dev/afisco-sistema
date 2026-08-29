@@ -40,45 +40,79 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
-        // Variáveis globais para armazenar os dados vindos do Neon ou Fallback
-        let clientesData = [
-            { id: 1, name: "Supermercado Compre Bem Ltda", cnpj: "12.345.678/0001-90", responsible: "Harrisson", value: 1200.00, dueDay: 10, start: "2024-01-10", status: "ativo" },
-            { id: 2, name: "Auto Mecânica São José", cnpj: "98.765.432/0001-11", responsible: "Mariana", value: 850.00, dueDay: 15, start: "2024-03-01", status: "ativo" },
-            { id: 3, name: "Clinica Odontológica Sorriso", cnpj: "45.678.901/0001-22", responsible: "Harrisson", value: 1500.00, dueDay: 5, start: "2023-06-15", status: "ativo" },
-            { id: 4, name: "Construtora Bahia Sul", cnpj: "11.222.333/0001-44", responsible: "Carlos", value: 2200.00, dueDay: 20, start: "2024-05-10", status: "ativo" },
-            { id: 5, name: "Padaria e Confeitaria Pão Dourado", cnpj: "55.444.333/0001-88", responsible: "Mariana", value: 650.00, dueDay: 10, start: "2024-02-01", status: "ativo" }
-        ];
+        // O Neon é a única fonte de verdade. A tela só muda depois que a API confirma o salvamento.
+        let clientesData = [];
+        let mensalidadesData = [];
+        let appLoaded = false;
 
-        let mensalidadesData = [
-            { id: 101, clientId: 1, month: 8, year: 2026, previsto: 1200.00, due: "2026-08-10", paidDate: "2026-08-08", paidValue: 1200.00, status: "Pago" },
-            { id: 102, clientId: 2, month: 8, year: 2026, previsto: 850.00, due: "2026-08-15", paidDate: "", paidValue: 0, status: "Em aberto" },
-            { id: 103, clientId: 3, month: 8, year: 2026, previsto: 1500.00, due: "2026-08-05", paidDate: "2026-08-04", paidValue: 1500.00, status: "Pago" },
-            { id: 104, clientId: 4, month: 8, year: 2026, previsto: 2200.00, due: "2026-08-20", paidDate: "", paidValue: 0, status: "Em aberto" },
-            { id: 105, clientId: 5, month: 8, year: 2026, previsto: 650.00, due: "2026-08-10", paidDate: "", paidValue: 0, status: "Vencido" }
-        ];
+        async function apiRequest(url, options = {}) {
+            const response = await fetch(url, options);
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(payload.error || 'Não foi possível concluir a operação.');
+            }
+            return payload;
+        }
 
-        // Função que busca os dados reais da API (Neon) se houver, mantendo o fallback
-        async function carregarDadosDoBanco() {
+        function setConnectionStatus(state, label) {
+            const status = document.getElementById('connectionStatus');
+            const dot = document.getElementById('connectionDot');
+            if (!status || !dot) return;
+            status.innerText = label;
+            dot.className = `w-2 h-2 rounded-full ${state === 'ok' ? 'bg-emerald-400' : state === 'error' ? 'bg-red-400' : 'bg-amber-300 animate-pulse'}`;
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('appToast');
+            if (!toast) return;
+            toast.replaceChildren();
+            const icon = document.createElement('i');
+            icon.className = `fa-solid ${type === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check'}`;
+            const text = document.createElement('span');
+            text.innerText = message;
+            toast.append(icon, text);
+            toast.className = `fixed right-4 top-24 z-[70] flex max-w-sm items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-xl ${type === 'error' ? 'bg-red-600' : 'bg-emerald-600'}`;
+            clearTimeout(window.afiscoToastTimer);
+            window.afiscoToastTimer = setTimeout(() => toast.classList.add('hidden'), 3500);
+        }
+
+        function setPeriodDefaults() {
+            const now = new Date();
+            const monthSelect = document.getElementById('billingMonth');
+            const yearSelect = document.getElementById('billingYear');
+            if (!monthSelect || !yearSelect || yearSelect.options.length) return;
+            monthSelect.value = String(now.getMonth() + 1);
+            for (let year = now.getFullYear() - 3; year <= now.getFullYear() + 1; year++) {
+                const option = document.createElement('option');
+                option.value = String(year);
+                option.innerText = String(year);
+                option.selected = year === now.getFullYear();
+                yearSelect.appendChild(option);
+            }
+        }
+
+        async function carregarDadosDoBanco({ silent = false } = {}) {
+            setPeriodDefaults();
+            const { month, year } = getSelectedPeriod();
+            if (!silent) setConnectionStatus('loading', 'Conectando ao Neon');
             try {
-                const resClientes = await fetch('/api/clientes');
-                if(resClientes.ok) {
-                    const dataCli = await resClientes.json();
-                    if(dataCli && dataCli.length > 0) clientesData = dataCli;
-                }
-
-                const resMensalidades = await fetch('/api/mensalidades');
-                if(resMensalidades.ok) {
-                    const dataMens = await resMensalidades.json();
-                    if(dataMens && dataMens.length > 0) mensalidadesData = dataMens;
-                }
+                const [clientes, mensalidades] = await Promise.all([
+                    apiRequest('/api/clientes'),
+                    apiRequest(`/api/mensalidades?month=${month}&year=${year}`)
+                ]);
+                clientesData = Array.isArray(clientes) ? clientes : [];
+                mensalidadesData = Array.isArray(mensalidades) ? mensalidades : [];
+                setConnectionStatus('ok', 'Dados salvos no Neon');
             } catch (error) {
-                console.log("Usando dados locais de demonstração (API offline/não configurada).");
+                setConnectionStatus('error', 'Falha ao conectar');
+                showToast(error.message, 'error');
             } finally {
+                appLoaded = true;
                 initApp();
             }
         }
 
-        window.onload = carregarDadosDoBanco;
+        window.addEventListener('load', () => carregarDadosDoBanco());
     </script>
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
@@ -108,34 +142,12 @@
                 </div>
             </div>
 
-            <!-- Global Filters (Month & Year) -->
-            <div class="flex items-center space-x-2 bg-blue-950/60 p-2 rounded-xl border border-blue-900/50">
-                <div class="flex items-center space-x-1 px-2">
-                    <i class="fa-regular fa-calendar text-blue-300 text-sm"></i>
-                    <span class="text-xs font-semibold text-blue-200 hidden sm:inline">Período:</span>
+            <div class="flex items-center gap-3 bg-blue-950/60 px-4 py-2.5 rounded-xl border border-blue-900/50" aria-live="polite">
+                <span id="connectionDot" class="w-2 h-2 rounded-full bg-amber-300 animate-pulse"></span>
+                <div>
+                    <div id="connectionStatus" class="text-xs font-semibold text-white">Conectando ao Neon</div>
+                    <div class="text-[10px] text-blue-300 hidden sm:block">Salvamento automático e seguro</div>
                 </div>
-                <select id="globalMonth" onchange="handleGlobalFilterChange()" class="bg-blue-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-700 focus:outline-none focus:ring-2 focus:ring-afisco-red">
-                    <option value="1">Janeiro</option>
-                    <option value="2">Fevereiro</option>
-                    <option value="3">Março</option>
-                    <option value="4">Abril</option>
-                    <option value="5">Maio</option>
-                    <option value="6">Junho</option>
-                    <option value="7">Julho</option>
-                    <option value="8" selected>Agosto</option>
-                    <option value="9">Setembro</option>
-                    <option value="10">Outubro</option>
-                    <option value="11">Novembro</option>
-                    <option value="12">Dezembro</option>
-                </select>
-                <select id="globalYear" onchange="handleGlobalFilterChange()" class="bg-blue-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-700 focus:outline-none focus:ring-2 focus:ring-afisco-red">
-                    <option value="2026" selected>2026</option>
-                    <option value="2025">2025</option>
-                    <option value="2024">2024</option>
-                </select>
-                <button onclick="resetDataToDemo()" title="Restaurar dados de exemplo" class="bg-blue-800 hover:bg-blue-700 text-blue-200 hover:text-white px-2.5 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1">
-                    <i class="fa-solid fa-rotate-right"></i> <span class="hidden md:inline">Resetar</span>
-                </button>
             </div>
         </div>
 
@@ -164,6 +176,8 @@
             </div>
         </nav>
     </header>
+
+    <div id="appToast" class="hidden" role="status" aria-live="polite"></div>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
 
@@ -330,18 +344,33 @@
                     <h2 class="text-xl font-bold text-afisco-blue flex items-center gap-2">
                         <i class="fa-solid fa-file-invoice-dollar text-afisco-red"></i> Controle de Mensalidades
                     </h2>
-                    <p class="text-xs text-afisco-textMuted mt-1">Registre pagamentos, valores pagos e datas.</p>
+                    <p class="text-xs text-afisco-textMuted mt-1">As cobranças dos clientes ativos são criadas automaticamente no Neon.</p>
                 </div>
-                <div class="flex items-center gap-2">
-                    <button onclick="generateMonthlyBilling()" class="bg-afisco-blue hover:bg-blue-800 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition shadow flex items-center gap-2">
-                        <i class="fa-solid fa-wand-magic-sparkles"></i> Gerar Faturamento do Mês
-                    </button>
+                <div class="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5 text-xs font-bold text-emerald-700 border border-emerald-100">
+                    <i class="fa-solid fa-bolt"></i> Faturamento automático
                 </div>
             </div>
 
-            <div class="bg-white p-4 rounded-2xl shadow-sm border border-afisco-border grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-afisco-border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-center">
                 <div class="relative">
                     <input type="text" id="billingSearchInput" onkeyup="renderMensalidadesTable()" placeholder="Filtrar por nome do cliente..." class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                </div>
+                <div class="grid grid-cols-2 gap-2" aria-label="Período das mensalidades">
+                    <select id="billingMonth" onchange="handleBillingPeriodChange()" class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium px-3 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                        <option value="1">Janeiro</option>
+                        <option value="2">Fevereiro</option>
+                        <option value="3">Março</option>
+                        <option value="4">Abril</option>
+                        <option value="5">Maio</option>
+                        <option value="6">Junho</option>
+                        <option value="7">Julho</option>
+                        <option value="8">Agosto</option>
+                        <option value="9">Setembro</option>
+                        <option value="10">Outubro</option>
+                        <option value="11">Novembro</option>
+                        <option value="12">Dezembro</option>
+                    </select>
+                    <select id="billingYear" onchange="handleBillingPeriodChange()" class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium px-3 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-afisco-blue"></select>
                 </div>
                 <div>
                     <select id="billingStatusFilter" onchange="renderMensalidadesTable()" class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium px-3 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-afisco-blue">
@@ -363,6 +392,7 @@
                         <thead>
                             <tr class="bg-slate-50 text-slate-600 text-xs uppercase font-semibold border-b border-slate-200">
                                 <th class="p-4">Cliente</th>
+                                <th class="p-4">Meses pagos</th>
                                 <th class="p-4">Responsável</th>
                                 <th class="p-4">Mês Ref.</th>
                                 <th class="p-4">Previsto</th>
@@ -537,7 +567,7 @@
             </div>
             <div class="flex justify-end gap-2 pt-3 border-t">
                 <button onclick="closeClientModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">Cancelar</button>
-                <button onclick="saveClientFromModal()" class="px-4 py-2 bg-afisco-blue hover:bg-blue-800 text-white text-xs font-semibold rounded-xl transition">Salvar Cliente</button>
+                <button id="saveClientButton" onclick="saveClientFromModal()" class="px-4 py-2 bg-afisco-blue hover:bg-blue-800 disabled:opacity-60 text-white text-xs font-semibold rounded-xl transition">Salvar Cliente</button>
             </div>
         </div>
     </div>
@@ -583,7 +613,7 @@
             </div>
             <div class="flex justify-end gap-2 pt-3 border-t">
                 <button onclick="closeMensalidadeModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">Cancelar</button>
-                <button onclick="saveMensalidadeFromModal()" class="px-4 py-2 bg-afisco-blue hover:bg-blue-800 text-white text-xs font-semibold rounded-xl transition">Salvar Pagamento</button>
+                <button id="saveMensalidadeButton" onclick="saveMensalidadeFromModal()" class="px-4 py-2 bg-afisco-blue hover:bg-blue-800 disabled:opacity-60 text-white text-xs font-semibold rounded-xl transition">Salvar Pagamento</button>
             </div>
         </div>
     </div>
@@ -624,9 +654,17 @@
             populateFichaSelect();
         }
 
-        function handleGlobalFilterChange() {
-            renderDashboard();
-            renderMensalidadesTable();
+        async function handleBillingPeriodChange() {
+            const { month, year } = getSelectedPeriod();
+            setConnectionStatus('loading', 'Atualizando mensalidades');
+            try {
+                mensalidadesData = await apiRequest(`/api/mensalidades?month=${month}&year=${year}`);
+                setConnectionStatus('ok', 'Dados salvos no Neon');
+                initApp();
+            } catch (error) {
+                setConnectionStatus('error', 'Falha ao conectar');
+                showToast(error.message, 'error');
+            }
         }
 
         function switchTab(tabId) {
@@ -650,13 +688,26 @@
         }
 
         function getSelectedPeriod() {
-            const m = parseInt(document.getElementById('globalMonth').value);
-            const y = parseInt(document.getElementById('globalYear').value);
+            const now = new Date();
+            const m = parseInt(document.getElementById('billingMonth')?.value || now.getMonth() + 1);
+            const y = parseInt(document.getElementById('billingYear')?.value || now.getFullYear());
             return { month: m, year: y };
         }
 
         function formatCurrency(val) {
             return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>'"]/g, character => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+            })[character]);
+        }
+
+        function formatDate(date) {
+            if (!date) return '-';
+            const [year, month, day] = date.slice(0, 10).split('-');
+            return `${day}/${month}/${year}`;
         }
 
         // ================= DASHBOARD LOGIC =================
@@ -765,9 +816,9 @@
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50/80 transition";
                 tr.innerHTML = `
-                    <td class="p-4 font-semibold text-afisco-blue">${c.name}</td>
-                    <td class="p-4 text-slate-600">${c.cnpj}</td>
-                    <td class="p-4 text-slate-700 font-medium"><span class="bg-blue-50 text-blue-800 text-xs px-2.5 py-1 rounded-lg">${c.responsible}</span></td>
+                    <td class="p-4 font-semibold text-afisco-blue">${escapeHtml(c.name)}</td>
+                    <td class="p-4 text-slate-600">${escapeHtml(c.cnpj)}</td>
+                    <td class="p-4 text-slate-700 font-medium"><span class="bg-blue-50 text-blue-800 text-xs px-2.5 py-1 rounded-lg">${escapeHtml(c.responsible)}</span></td>
                     <td class="p-4 font-bold text-slate-800">${formatCurrency(c.value)}</td>
                     <td class="p-4 text-slate-600">Dia ${c.dueDay}</td>
                     <td class="p-4">
@@ -818,9 +869,9 @@
 
         async function saveClientFromModal() {
             const id = document.getElementById('modalClientId').value;
-            const name = document.getElementById('modalClientName').value;
-            const cnpj = document.getElementById('modalClientCnpj').value;
-            const responsible = document.getElementById('modalClientResponsible').value;
+            const name = document.getElementById('modalClientName').value.trim();
+            const cnpj = document.getElementById('modalClientCnpj').value.trim();
+            const responsible = document.getElementById('modalClientResponsible').value.trim();
             const value = parseFloat(document.getElementById('modalClientValue').value) || 0;
             const dueDay = parseInt(document.getElementById('modalClientDueDay').value) || 10;
             const start = document.getElementById('modalClientStart').value;
@@ -831,44 +882,26 @@
                 return;
             }
 
-            if(id === "") {
-                const newId = clientesData.length > 0 ? Math.max(...clientesData.map(c => c.id)) + 1 : 1;
-                const novoCliente = { id: newId, name, cnpj, responsible, value, dueDay, start, status };
-                clientesData.push(novoCliente);
-                
-                try {
-                    await fetch('/api/clientes', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(novoCliente)
-                    });
-                } catch(e) { console.log('Erro ao salvar no servidor:', e); }
+            const button = document.getElementById('saveClientButton');
+            const originalLabel = button.innerText;
+            button.disabled = true;
+            button.innerText = 'Salvando...';
 
-            } else {
-                const c = clientesData.find(item => item.id == id);
-                if(c) {
-                    c.name = name;
-                    c.cnpj = cnpj;
-                    c.responsible = responsible;
-                    c.value = value;
-                    c.dueDay = dueDay;
-                    c.start = start;
-                    c.status = status;
-
-                    try {
-                        await fetch('/api/clientes/' + id, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(c)
-                        });
-                    } catch(e) { console.log('Erro ao atualizar no servidor:', e); }
-                }
+            try {
+                await apiRequest('/api/clientes', {
+                    method: id ? 'PUT' : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: id || undefined, name, cnpj, responsible, value, dueDay, start, status })
+                });
+                closeClientModal();
+                await carregarDadosDoBanco({ silent: true });
+                showToast(id ? 'Cliente atualizado e salvo.' : 'Cliente cadastrado e mensalidade criada.');
+            } catch (error) {
+                showToast(error.message, 'error');
+            } finally {
+                button.disabled = false;
+                button.innerText = originalLabel;
             }
-
-            closeClientModal();
-            renderClientsTable();
-            populateFichaSelect();
-            renderDashboard();
         }
 
         function openDeleteClientModal(id) {
@@ -886,22 +919,16 @@
 
         async function confirmDeleteClient() {
             const id = parseInt(document.getElementById('deleteClientId').value);
-            
-            clientesData = clientesData.filter(c => c.id !== id);
-            mensalidadesData = mensalidadesData.filter(m => m.clientId !== id);
-
             try {
-                await fetch('/api/clientes/' + id, {
+                await apiRequest('/api/clientes?id=' + id, {
                     method: 'DELETE'
                 });
-            } catch(e) { console.log('Erro ao excluir no servidor:', e); }
-
-            closeDeleteClientModal();
-            renderClientsTable();
-            renderMensalidadesTable();
-            renderInadimplenciaTable();
-            populateFichaSelect();
-            renderDashboard();
+                closeDeleteClientModal();
+                await carregarDadosDoBanco({ silent: true });
+                showToast('Cliente e mensalidades excluídos.');
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
         }
 
         // ================= MENSALIDADES LOGIC =================
@@ -925,7 +952,7 @@
             document.getElementById('billingCountLabel').innerText = `Mostrando ${filtered.length} mensalidades`;
 
             if(filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-slate-400">Nenhuma mensalidade encontrada para este período. Clique em "Gerar Faturamento do Mês".</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" class="p-8 text-center text-slate-400"><i class="fa-regular fa-calendar-xmark text-2xl mb-2 block"></i>Nenhuma mensalidade encontrada para este período.</td></tr>`;
                 return;
             }
 
@@ -939,66 +966,26 @@
                 else if(item.status === 'Parcial') statusBadge = "bg-amber-100 text-amber-800";
                 else statusBadge = "bg-slate-100 text-slate-700";
 
+                const mesesPagos = mensalidadesData.filter(m => m.clientId === cli.id && m.status === 'Pago').length;
+
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50/80 transition";
                 tr.innerHTML = `
-                    <td class="p-4 font-semibold text-afisco-blue">${cli.name}</td>
-                    <td class="p-4 text-slate-600">${cli.responsible}</td>
-                    <td class="p-4 text-slate-600">${mesesNomes[item.month]}</td>
+                    <td class="p-4 font-semibold text-afisco-blue">${escapeHtml(cli.name)}</td>
+                    <td class="p-4"><span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700"><i class="fa-solid fa-circle-check"></i>${mesesPagos} ${mesesPagos === 1 ? 'mês' : 'meses'}</span></td>
+                    <td class="p-4 text-slate-600">${escapeHtml(cli.responsible)}</td>
+                    <td class="p-4 text-slate-600">${mesesNomes[item.month]} / ${item.year}</td>
                     <td class="p-4 font-bold text-slate-800">${formatCurrency(item.previsto)}</td>
-                    <td class="p-4 text-slate-600">${item.due}</td>
-                    <td class="p-4 text-slate-600">${item.paidDate || '-'}</td>
+                    <td class="p-4 text-slate-600">${formatDate(item.due)}</td>
+                    <td class="p-4 text-slate-600">${formatDate(item.paidDate)}</td>
                     <td class="p-4 font-bold text-emerald-600">${formatCurrency(item.paidValue)}</td>
                     <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge}">${item.status}</span></td>
                     <td class="p-4 text-right">
-                        <button onclick="openMensalidadeModal(${item.id})" class="text-blue-600 hover:text-blue-800 text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 transition flex items-center gap-1 ml-auto"><i class="fa-solid fa-pen-to-square"></i> Editar</button>
+                        <button onclick="openMensalidadeModal(${item.id})" class="text-blue-600 hover:text-blue-800 text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 transition flex items-center gap-1 ml-auto"><i class="fa-solid ${item.status === 'Pago' ? 'fa-pen-to-square' : 'fa-check'}"></i> ${item.status === 'Pago' ? 'Editar' : 'Dar baixa'}</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
-        }
-
-        async function generateMonthlyBilling() {
-            const { month, year } = getSelectedPeriod();
-            const activeClients = clientesData.filter(c => c.status === 'ativo');
-            let addedCount = 0;
-            const novasMensalidades = [];
-
-            activeClients.forEach(cli => {
-                const exists = mensalidadesData.find(m => m.clientId === cli.id && m.month === month && m.year === year);
-                if(!exists) {
-                    const newId = mensalidadesData.length > 0 ? Math.max(...mensalidadesData.map(m => m.id)) + 1 : 1;
-                    const dueDateStr = `${year}-${String(month).padStart(2, '0')}-${String(cli.dueDay).padStart(2, '0')}`;
-                    const nova = {
-                        id: newId,
-                        clientId: cli.id,
-                        month: month,
-                        year: year,
-                        previsto: cli.value,
-                        due: dueDateStr,
-                        paidDate: "",
-                        paidValue: 0,
-                        status: "Em aberto"
-                    };
-                    mensalidadesData.push(nova);
-                    novasMensalidades.push(nova);
-                    addedCount++;
-                }
-            });
-
-            if (novasMensalidades.length > 0) {
-                try {
-                    await fetch('/api/mensalidades/gerar', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ mensalidades: novasMensalidades })
-                    });
-                } catch(e) { console.log('Erro ao gerar mensalidades no servidor:', e); }
-            }
-
-            alert(`Faturamento gerado com sucesso! ${addedCount} novas mensalidades adicionadas para ${mesesNomes[month]}/${year}.`);
-            renderMensalidadesTable();
-            renderDashboard();
         }
 
         function openMensalidadeModal(id) {
@@ -1009,9 +996,9 @@
             document.getElementById('modalMensalidadeId').value = item.id;
             document.getElementById('modalMensalidadeInfo').value = `${cli ? cli.name : 'Cliente'} (${mesesNomes[item.month]}/${item.year})`;
             document.getElementById('modalMensalidadePrevisto').value = item.previsto;
-            document.getElementById('modalMensalidadePago').value = item.paidValue || item.previsto;
+            document.getElementById('modalMensalidadePago').value = ['Pago', 'Parcial'].includes(item.status) ? item.paidValue : item.previsto;
             document.getElementById('modalMensalidadeDataPgto').value = item.paidDate || new Date().toISOString().split('T')[0];
-            document.getElementById('modalMensalidadeStatus').value = item.status;
+            document.getElementById('modalMensalidadeStatus').value = ['Em aberto', 'Vencido'].includes(item.status) ? 'Pago' : item.status;
 
             document.getElementById('mensalidadeModal').classList.remove('hidden');
         }
@@ -1023,30 +1010,37 @@
         async function saveMensalidadeFromModal() {
             const id = parseInt(document.getElementById('modalMensalidadeId').value);
             const previsto = parseFloat(document.getElementById('modalMensalidadePrevisto').value) || 0;
-            const paidValue = parseFloat(document.getElementById('modalMensalidadePago').value) || 0;
-            const paidDate = document.getElementById('modalMensalidadeDataPgto').value;
+            let paidValue = parseFloat(document.getElementById('modalMensalidadePago').value) || 0;
+            let paidDate = document.getElementById('modalMensalidadeDataPgto').value;
             const status = document.getElementById('modalMensalidadeStatus').value;
 
             const item = mensalidadesData.find(m => m.id === id);
-            if(item) {
-                item.previsto = previsto;
-                item.paidValue = paidValue;
-                item.paidDate = paidDate;
-                item.status = status;
+            if(!item) return;
 
-                try {
-                    await fetch('/api/mensalidades/' + id, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(item)
-                    });
-                } catch(e) { console.log('Erro ao atualizar mensalidade no servidor:', e); }
+            if (status === 'Pago' && paidValue <= 0) paidValue = previsto;
+            if (status === 'Pago' && !paidDate) paidDate = new Date().toISOString().split('T')[0];
+
+            const button = document.getElementById('saveMensalidadeButton');
+            const originalLabel = button.innerText;
+            button.disabled = true;
+            button.innerText = 'Salvando...';
+
+            try {
+                const updated = await apiRequest('/api/mensalidades', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...item, previsto, paidValue, paidDate, status })
+                });
+                mensalidadesData = mensalidadesData.map(m => m.id === updated.id ? updated : m);
+                closeMensalidadeModal();
+                initApp();
+                showToast('Pagamento salvo no Neon.');
+            } catch (error) {
+                showToast(error.message, 'error');
+            } finally {
+                button.disabled = false;
+                button.innerText = originalLabel;
             }
-
-            closeMensalidadeModal();
-            renderMensalidadesTable();
-            renderDashboard();
-            renderInadimplenciaTable();
         }
 
         // ================= INADIMPLÊNCIA LOGIC =================
@@ -1092,11 +1086,11 @@
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-red-50/40 transition";
                 tr.innerHTML = `
-                    <td class="p-4 font-semibold text-afisco-blue">${cli.name}<br><span class="text-xs text-slate-400 font-normal">${cli.cnpj}</span></td>
-                    <td class="p-4 text-slate-700">${cli.responsible}</td>
+                    <td class="p-4 font-semibold text-afisco-blue">${escapeHtml(cli.name)}<br><span class="text-xs text-slate-400 font-normal">${escapeHtml(cli.cnpj)}</span></td>
+                    <td class="p-4 text-slate-700">${escapeHtml(cli.responsible)}</td>
                     <td class="p-4 font-bold text-afisco-red">${item.count} título(s)</td>
                     <td class="p-4 font-bold text-afisco-red text-base">${formatCurrency(item.totalDevido)}</td>
-                    <td class="p-4 text-slate-600">${item.oldestDate}</td>
+                    <td class="p-4 text-slate-600">${formatDate(item.oldestDate)}</td>
                     <td class="p-4 text-right">
                         <button onclick="goToClientFicha(${cli.id})" class="text-blue-600 hover:text-blue-800 text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 transition"><i class="fa-solid fa-eye"></i> Ver Ficha</button>
                     </td>
@@ -1113,7 +1107,7 @@
 
         // ================= ANÁLISE MENSAL LOGIC =================
         function renderAnaliseTab() {
-            const year = parseInt(document.getElementById('globalYear').value);
+            const { year } = getSelectedPeriod();
             document.getElementById('lblAnoAnalise').innerText = year;
 
             const mesesArr = [1,2,3,4,5,6,7,8,9,10,11,12];
@@ -1207,9 +1201,13 @@
             const cliMensalidades = mensalidadesData.filter(m => m.clientId === cli.id);
             let totalPagoCli = 0;
             let totalDevendoCli = 0;
+            let mesesPagosCli = 0;
 
             cliMensalidades.forEach(m => {
-                if(m.status === 'Pago') totalPagoCli += m.paidValue;
+                if(m.status === 'Pago') {
+                    totalPagoCli += m.paidValue;
+                    mesesPagosCli++;
+                }
                 if(m.status === 'Vencido' || m.status === 'Em aberto' || m.status === 'Parcial') {
                     totalDevendoCli += (m.previsto - m.paidValue);
                 }
@@ -1224,8 +1222,8 @@
                         <tr class="hover:bg-slate-50 transition">
                             <td class="p-3 font-medium">${mesesNomes[m.month]} / ${m.year}</td>
                             <td class="p-3">${formatCurrency(m.previsto)}</td>
-                            <td class="p-3">${m.due}</td>
-                            <td class="p-3">${m.paidDate || '-'}</td>
+                            <td class="p-3">${formatDate(m.due)}</td>
+                            <td class="p-3">${formatDate(m.paidDate)}</td>
                             <td class="p-3 font-semibold text-emerald-600">${formatCurrency(m.paidValue)}</td>
                             <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-semibold ${m.status === 'Pago' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-afisco-red'}">${m.status}</span></td>
                         </tr>
@@ -1237,10 +1235,10 @@
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-afisco-border grid grid-cols-1 sm:grid-cols-3 gap-6">
                     <div>
                         <div class="text-xs uppercase font-bold text-slate-400 tracking-wider">Dados Cadastrais</div>
-                        <h3 class="text-lg font-bold text-afisco-blue mt-1">${cli.name}</h3>
-                        <p class="text-xs text-slate-600 mt-0.5">CNPJ: ${cli.cnpj}</p>
-                        <p class="text-xs text-slate-600 mt-0.5">Responsável: <span class="font-semibold text-blue-800">${cli.responsible}</span></p>
-                        <p class="text-xs text-slate-600 mt-0.5">Início do Contrato: ${cli.start}</p>
+                        <h3 class="text-lg font-bold text-afisco-blue mt-1">${escapeHtml(cli.name)}</h3>
+                        <p class="text-xs text-slate-600 mt-0.5">CNPJ: ${escapeHtml(cli.cnpj)}</p>
+                        <p class="text-xs text-slate-600 mt-0.5">Responsável: <span class="font-semibold text-blue-800">${escapeHtml(cli.responsible)}</span></p>
+                        <p class="text-xs text-slate-600 mt-0.5">Início do Contrato: ${formatDate(cli.start)}</p>
                     </div>
                     <div>
                         <div class="text-xs uppercase font-bold text-slate-400 tracking-wider">Condições Comerciais</div>
@@ -1251,7 +1249,8 @@
                     <div class="flex flex-col justify-between border-t sm:border-t-0 sm:border-l sm:pl-6 pt-4 sm:pt-0 border-slate-100">
                         <div>
                             <div class="text-xs uppercase font-bold text-slate-400 tracking-wider">Resumo Financeiro Histórico</div>
-                            <div class="text-sm font-semibold text-emerald-600 mt-2">Total Pago: ${formatCurrency(totalPagoCli)}</div>
+                            <div class="text-sm font-semibold text-blue-700 mt-2">Meses pagos: ${mesesPagosCli}</div>
+                            <div class="text-sm font-semibold text-emerald-600 mt-1">Total Pago: ${formatCurrency(totalPagoCli)}</div>
                             <div class="text-sm font-semibold text-afisco-red mt-1">Total em Aberto/Vencido: ${formatCurrency(totalDevendoCli)}</div>
                         </div>
                         <div class="mt-4 flex gap-2">
@@ -1285,11 +1284,6 @@
             `;
         }
 
-        function resetDataToDemo() {
-            if(confirm("Deseja restaurar todos os dados para os valores padrão de demonstração?")) {
-                location.reload();
-            }
-        }
     </script>
 </body>
 </html>

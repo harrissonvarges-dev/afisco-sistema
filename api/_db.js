@@ -1,0 +1,159 @@
+const { Pool } = require('pg');
+
+const pool = globalThis.__afiscoPool || new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : undefined,
+    max: 3,
+    idleTimeoutMillis: 10000,
+    connectionTimeoutMillis: 10000
+});
+
+if (process.env.NODE_ENV !== 'production') {
+    globalThis.__afiscoPool = pool;
+}
+
+let schemaPromise;
+
+function ensureSchema() {
+    if (!process.env.DATABASE_URL) {
+        throw new Error('DATABASE_URL não foi configurada no ambiente.');
+    }
+
+    if (!schemaPromise) {
+        schemaPromise = (async () => {
+            await pool.query(`
+                CREATE TABLE IF NOT EXISTS clientes (
+                    id BIGSERIAL PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    cnpj TEXT NOT NULL DEFAULT '',
+                    responsible TEXT NOT NULL DEFAULT '',
+                    value NUMERIC(12, 2) NOT NULL DEFAULT 0,
+                    due_day INTEGER NOT NULL DEFAULT 10 CHECK (due_day BETWEEN 1 AND 31),
+                    start_date DATE NOT NULL DEFAULT CURRENT_DATE,
+                    status TEXT NOT NULL DEFAULT 'ativo'
+                )
+            `);
+            await pool.query(`
+                CREATE TABLE IF NOT EXISTS mensalidades (
+                    id BIGSERIAL PRIMARY KEY,
+                    client_id BIGINT NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
+                    month INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),
+                    year INTEGER NOT NULL,
+                    previsto NUMERIC(12, 2) NOT NULL DEFAULT 0,
+                    due_date DATE NOT NULL,
+                    paid_date DATE,
+                    paid_value NUMERIC(12, 2) NOT NULL DEFAULT 0,
+                    status TEXT NOT NULL DEFAULT 'Em aberto'
+                )
+            `);
+            await pool.query('CREATE INDEX IF NOT EXISTS mensalidades_periodo_idx ON mensalidades (year, month)');
+            await pool.query('CREATE INDEX IF NOT EXISTS mensalidades_cliente_idx ON mensalidades (client_id)');
+        })().catch(error => {
+            schemaPromise = undefined;
+            throw error;
+        });
+    }
+    return schemaPromise;
+}
+
+async function ensurePeriod(month, year) {
+    const db = await pool.connect();
+    try {
+        await db.query('BEGIN');
+        await db.query('SELECT pg_advisory_xact_lock($1, $2)', [year, month]);
+        const result = await db.query(
+            `INSERT INTO mensalidades
+                (client_id, month, year, previsto, due_date, paid_date, paid_value, status)
+             SELECT c.id,
+                    $1,
+                    $2,
+                    c.value,
+                    make_date(
+                        $2,
+                        $1,
+                        LEAST(c.due_day, EXTRACT(DAY FROM (make_date($2, $1, 1) + INTERVAL '1 month - 1 day'))::INTEGER)
+                    ),
+                    NULL,
+                    0,
+                    CASE
+                        WHEN make_date(
+                            $2,
+                            $1,
+                            LEAST(c.due_day, EXTRACT(DAY FROM (make_date($2, $1, 1) + INTERVAL '1 month - 1 day'))::INTEGER)
+                        ) < CURRENT_DATE THEN 'Vencido'
+                        ELSE 'Em aberto'
+                    END
+             FROM clientes c
+             WHERE c.status = 'ativo'
+               AND c.start_date <= (make_date($2, $1, 1) + INTERVAL '1 month - 1 day')::date
+               AND NOT EXISTS (
+                   SELECT 1 FROM mensalidades m
+                   WHERE m.client_id = c.id AND m.month = $1 AND m.year = $2
+               )`,
+            [month, year]
+        );
+        await db.query('COMMIT');
+        return result.rowCount;
+    } catch (error) {
+        await db.query('ROLLBACK');
+        throw error;
+    } finally {
+        db.release();
+    }
+}
+
+function toIsoDate(value) {
+    if (!value) return '';
+    if (typeof value === 'string') return value.slice(0, 10);
+    return value.toISOString().slice(0, 10);
+}
+
+function mapCliente(row) {
+    return {
+        id: Number(row.id),
+        name: row.name,
+        cnpj: row.cnpj || '',
+        responsible: row.responsible || '',
+        value: Number(row.value || 0),
+        dueDay: Number(row.due_day || 10),
+        start: toIsoDate(row.start_date),
+        status: row.status || 'ativo'
+    };
+}
+
+function mapMensalidade(row) {
+    return {
+        id: Number(row.id),
+        clientId: Number(row.client_id),
+        month: Number(row.month),
+        year: Number(row.year),
+        previsto: Number(row.previsto || 0),
+        due: toIsoDate(row.due_date),
+        paidDate: toIsoDate(row.paid_date),
+        paidValue: Number(row.paid_value || 0),
+        status: row.status || 'Em aberto'
+    };
+}
+
+function parseBody(req) {
+    if (!req.body) return {};
+    return typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+}
+
+function sendError(res, error, fallbackMessage) {
+    console.error(error);
+    const missingDatabase = error.message?.includes('DATABASE_URL');
+    return res.status(missingDatabase ? 503 : 500).json({
+        error: missingDatabase ? 'Banco de dados não configurado.' : fallbackMessage
+    });
+}
+
+module.exports = {
+    pool,
+    ensureSchema,
+    ensurePeriod,
+    mapCliente,
+    mapMensalidade,
+    parseBody,
+    sendError
+};

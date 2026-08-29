@@ -7,6 +7,6 @@
     "start": "node api/clientes.js"
   },
   "dependencies": {
-    "pg": "^8.11.3"
+    "pg": "^8.23.0"
   }
 }
