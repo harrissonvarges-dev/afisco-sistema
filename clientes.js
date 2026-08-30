@@ -1,0 +1,238 @@
+const {
+    pool,
+    ensureSchema,
+    mapCliente,
+    parseBody,
+    sendError
+} = require('./_db');
+const { requireAuth, recordAudit } = require('./_auth');
+
+function samePerson(left, right) {
+    const expected = String(right || '').trim().toLowerCase();
+    return Boolean(expected) && String(left || '').trim().toLowerCase() === expected;
+}
+
+function mapClienteForUser(row, user, isAdmin) {
+    const cliente = mapCliente(row);
+    const isOwner = samePerson(row.responsible, user.responsibleName);
+    const isCollector = samePerson(row.collector, user.responsibleName);
+    const canViewFinancials = isAdmin
+        || isOwner
+        || isCollector;
+    return {
+        ...cliente,
+        responsible: isAdmin ? cliente.responsible : '',
+        collector: isAdmin ? cliente.collector : '',
+        value: canViewFinancials ? cliente.value : null,
+        canViewFinancials,
+        canManage: isAdmin || isOwner
+    };
+}
+
+function normalizeCliente(body) {
+    return {
+        id: body.id ? Number(body.id) : null,
+        name: String(body.name || '').trim(),
+        cnpj: String(body.cnpj || '').trim(),
+        phone: String(body.phone || body.whatsapp || '').trim().slice(0, 30),
+        responsible: String(body.responsible || '').trim(),
+        collector: String(body.collector || '').trim().slice(0, 100),
+        value: Number(body.value || 0),
+        dueDay: Math.min(31, Math.max(1, Number(body.dueDay ?? body.due_day ?? 10))),
+        start: body.start || body.start_date || new Date().toISOString().slice(0, 10),
+        status: body.status === 'inativo' ? 'inativo' : 'ativo'
+    };
+}
+
+module.exports = async function handler(req, res) {
+    try {
+        await ensureSchema();
+        const user = await requireAuth(req, res);
+        if (!user) return;
+        const isAdmin = user.role === 'admin';
+
+        if (req.method === 'GET') {
+            const { rows } = await pool.query('SELECT * FROM clientes ORDER BY name ASC');
+            return res.status(200).json(rows.map(row => mapClienteForUser(row, user, isAdmin)));
+        }
+
+        if (req.method === 'POST') {
+            const cliente = normalizeCliente(parseBody(req));
+            if (!isAdmin) {
+                cliente.responsible = user.responsibleName;
+                cliente.collector = '';
+            }
+            if (!cliente.name) {
+                return res.status(400).json({ error: 'Informe o nome do cliente.' });
+            }
+
+            const db = await pool.connect();
+            try {
+                await db.query('BEGIN');
+                const { rows } = await db.query(
+                    `INSERT INTO clientes
+                        (name, cnpj, phone, responsible, collector, value, due_day, start_date, status)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                     RETURNING *`,
+                    [cliente.name, cliente.cnpj, cliente.phone, cliente.responsible, cliente.collector, cliente.value, cliente.dueDay, cliente.start, cliente.status]
+                );
+
+                const created = rows[0];
+                if (created.status === 'ativo') {
+                    await db.query(
+                        `INSERT INTO mensalidades
+                            (client_id, month, year, previsto, due_date, paid_date, paid_value, status)
+                         SELECT $1,
+                                EXTRACT(MONTH FROM CURRENT_DATE)::INTEGER,
+                                EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER,
+                                $2,
+                                make_date(
+                                    EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER,
+                                    EXTRACT(MONTH FROM CURRENT_DATE)::INTEGER,
+                                    LEAST($3, EXTRACT(DAY FROM (date_trunc('month', CURRENT_DATE) + INTERVAL '1 month - 1 day'))::INTEGER)
+                                ),
+                                NULL,
+                                0,
+                                'Em aberto'
+                         WHERE $4::date <= (date_trunc('month', CURRENT_DATE) + INTERVAL '1 month - 1 day')::date
+                           AND NOT EXISTS (
+                               SELECT 1 FROM mensalidades
+                               WHERE client_id = $1
+                                 AND month = EXTRACT(MONTH FROM CURRENT_DATE)::INTEGER
+                                 AND year = EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER
+                           )`,
+                        [created.id, created.value, created.due_day, created.start_date]
+                    );
+                }
+
+                await recordAudit(db, user, 'cliente_criado', 'cliente', created.id, {
+                    name: created.name,
+                    responsible: created.responsible,
+                    value: Number(created.value || 0)
+                });
+                await db.query('COMMIT');
+                return res.status(201).json(mapClienteForUser(created, user, isAdmin));
+            } catch (error) {
+                await db.query('ROLLBACK');
+                throw error;
+            } finally {
+                db.release();
+            }
+        }
+
+        if (req.method === 'PUT') {
+            const cliente = normalizeCliente(parseBody(req));
+            if (!isAdmin) {
+                cliente.responsible = user.responsibleName;
+                cliente.collector = '';
+            }
+            if (!cliente.id || !cliente.name) {
+                return res.status(400).json({ error: 'Cliente inválido.' });
+            }
+
+            const db = await pool.connect();
+            try {
+                await db.query('BEGIN');
+                const oldResult = isAdmin
+                    ? await db.query('SELECT * FROM clientes WHERE id=$1 FOR UPDATE', [cliente.id])
+                    : await db.query(
+                        `SELECT * FROM clientes
+                         WHERE id=$1 AND LOWER(TRIM(responsible)) = LOWER(TRIM($2))
+                         FOR UPDATE`,
+                        [cliente.id, user.responsibleName]
+                    );
+                if (!oldResult.rows[0]) {
+                    await db.query('ROLLBACK');
+                    return res.status(404).json({ error: 'Cliente não encontrado.' });
+                }
+                if (!isAdmin) cliente.collector = oldResult.rows[0].collector || '';
+
+                const { rows } = await db.query(
+                    `UPDATE clientes
+                     SET name=$1, cnpj=$2, phone=$3, responsible=$4, collector=$5, value=$6,
+                         due_day=$7, start_date=$8, status=$9,
+                         last_adjustment_date=CASE
+                             WHEN value IS DISTINCT FROM $6::numeric THEN CURRENT_DATE
+                             ELSE last_adjustment_date
+                         END
+                     WHERE id=$10
+                     RETURNING *`,
+                    [cliente.name, cliente.cnpj, cliente.phone, cliente.responsible, cliente.collector, cliente.value, cliente.dueDay, cliente.start, cliente.status, cliente.id]
+                );
+                const updated = rows[0];
+                const oldClient = mapCliente(oldResult.rows[0]);
+                const newClient = mapCliente(updated);
+                if (oldClient.value !== newClient.value) {
+                    await db.query(
+                        `UPDATE mensalidades
+                         SET previsto=$1
+                         WHERE client_id=$2
+                           AND status <> 'Pago'
+                           AND (year > EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER
+                                OR (year = EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER
+                                    AND month >= EXTRACT(MONTH FROM CURRENT_DATE)::INTEGER))`,
+                        [newClient.value, updated.id]
+                    );
+                }
+                await recordAudit(db, user, 'cliente_atualizado', 'cliente', updated.id, {
+                    name: updated.name,
+                    before: oldClient,
+                    after: newClient
+                });
+                await db.query('COMMIT');
+                return res.status(200).json(mapClienteForUser(updated, user, isAdmin));
+            } catch (error) {
+                await db.query('ROLLBACK');
+                throw error;
+            } finally {
+                db.release();
+            }
+        }
+
+        if (req.method === 'DELETE') {
+            const id = Number(req.query?.id);
+            if (!id) {
+                return res.status(400).json({ error: 'Informe o cliente que será excluído.' });
+            }
+
+            const db = await pool.connect();
+            try {
+                await db.query('BEGIN');
+                const accessResult = isAdmin
+                    ? await db.query('SELECT * FROM clientes WHERE id=$1 FOR UPDATE', [id])
+                    : await db.query(
+                        `SELECT * FROM clientes
+                         WHERE id=$1 AND LOWER(TRIM(responsible)) = LOWER(TRIM($2))
+                         FOR UPDATE`,
+                        [id, user.responsibleName]
+                    );
+                if (!accessResult.rows[0]) {
+                    await db.query('ROLLBACK');
+                    return res.status(404).json({ error: 'Cliente não encontrado.' });
+                }
+                const deletedClient = mapCliente(accessResult.rows[0]);
+                await db.query('DELETE FROM mensalidades WHERE client_id=$1', [id]);
+                const result = await db.query('DELETE FROM clientes WHERE id=$1 RETURNING id', [id]);
+                await recordAudit(db, user, 'cliente_excluido', 'cliente', id, {
+                    name: deletedClient.name,
+                    responsible: deletedClient.responsible
+                });
+                await db.query('COMMIT');
+                if (!result.rows[0]) {
+                    return res.status(404).json({ error: 'Cliente não encontrado.' });
+                }
+                return res.status(200).json({ success: true });
+            } catch (error) {
+                await db.query('ROLLBACK');
+                throw error;
+            } finally {
+                db.release();
+            }
+        }
+
+        res.setHeader('Allow', 'GET, POST, PUT, DELETE');
+        return res.status(405).json({ error: 'Método não permitido.' });
+    } catch (error) {
+        return sendError(res, error, 'Não foi possível acessar os clientes.');
+    }
+};

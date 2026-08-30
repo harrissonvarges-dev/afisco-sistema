@@ -414,7 +414,7 @@
                     <h2 class="text-xl font-bold text-afisco-blue flex items-center gap-2">
                         <i class="fa-solid fa-users text-afisco-red"></i> Cadastro de Clientes
                     </h2>
-                    <p class="text-xs text-afisco-textMuted mt-1">Gerencie a carteira de clientes e o responsável/funcionário vinculado.</p>
+                    <p class="text-xs text-afisco-textMuted mt-1">Consulte e mantenha os dados cadastrais dos clientes.</p>
                 </div>
                 <button onclick="openClientModal('new')" class="bg-afisco-red hover:bg-afisco-darkRed text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition shadow flex items-center gap-2">
                     <i class="fa-solid fa-user-plus"></i> Novo Cliente
@@ -426,7 +426,7 @@
                     <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                         <i class="fa-solid fa-search"></i>
                     </span>
-                    <input type="text" id="clientSearchInput" onkeyup="renderClientsTable()" placeholder="Pesquisar por nome, CNPJ ou responsável..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                    <input type="text" id="clientSearchInput" onkeyup="renderClientsTable()" placeholder="Pesquisar por nome ou CNPJ..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
                 </div>
                 <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
                     <select id="clientStatusFilter" onchange="renderClientsTable()" class="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium px-3 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-afisco-blue">
@@ -444,7 +444,7 @@
                             <tr class="bg-slate-50 text-slate-600 text-xs uppercase font-semibold border-b border-slate-200">
                                 <th class="p-4">Empresa / Cliente</th>
                                 <th class="p-4">CNPJ</th>
-                                <th class="p-4">Responsável / Funcionário</th>
+                                <th id="clientsResponsibleHeader" class="p-4">Responsável / Funcionário</th>
                                 <th class="p-4">Mensalidade</th>
                                 <th class="p-4">Vencimento</th>
                                 <th class="p-4">Pagamento do mês</th>
@@ -507,20 +507,16 @@
             </div>
 
             <div class="bg-white rounded-2xl shadow-sm border border-afisco-border overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
+                <div class="overflow-hidden">
+                    <table class="w-full table-fixed text-left border-collapse">
                         <thead>
                             <tr class="bg-slate-50 text-slate-600 text-xs uppercase font-semibold border-b border-slate-200">
-                                <th class="p-4">Cliente</th>
-                                <th class="p-4">Meses pagos</th>
-                                <th class="p-4">Responsável</th>
-                                <th class="p-4">Mês Ref.</th>
-                                <th class="p-4">Previsto</th>
-                                <th class="p-4">Vencimento</th>
-                                <th class="p-4">Data Pgto</th>
-                                <th class="p-4">Valor Pago</th>
-                                <th class="p-4">Status</th>
-                                <th class="p-4 text-right">Ação / Editar</th>
+                                <th class="w-[23%] p-4">Cliente</th>
+                                <th id="mensalidadesResponsibleHeader" class="w-[13%] p-4">Responsável</th>
+                                <th class="w-[17%] p-4">Referência / Datas</th>
+                                <th class="w-[17%] p-4">Valores</th>
+                                <th class="w-[10%] p-4">Status</th>
+                                <th class="w-[20%] p-4 text-right">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="mensalidadesTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
@@ -553,7 +549,7 @@
                         <thead>
                             <tr class="bg-red-50/50 text-red-900 text-xs uppercase font-semibold border-b border-red-100">
                                 <th class="p-4">Cliente / CNPJ</th>
-                                <th class="p-4">Responsável</th>
+                                <th id="inadimplenciaResponsibleHeader" class="p-4">Responsável</th>
                                 <th class="p-4">Mensalidades Vencidas</th>
                                 <th class="p-4">Valor Total Devido</th>
                                 <th class="p-4">Mais Antiga em Aberto</th>
@@ -569,7 +565,7 @@
         <!-- ================= 5. TAB: ANÁLISE MENSAL ================= -->
         <div id="tab-analise" class="tab-content space-y-6 hidden">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-afisco-border">
-                <div>
+                <div id="clientResponsibleField">
                     <h2 class="text-xl font-bold text-afisco-blue flex items-center gap-2">
                         <i class="fa-solid fa-chart-line text-afisco-red"></i> Análise Mensal e Evolução
                     </h2>
@@ -1010,7 +1006,11 @@
             document.getElementById('currentUserName').innerText = currentUser?.name || 'Usuário';
             document.getElementById('currentUserRole').innerText = currentUser?.role === 'admin'
                 ? 'Administrador · acesso completo'
-                : `Funcionário · carteira e recebimentos de ${currentUser?.responsibleName || currentUser?.name}`;
+                : 'Funcionário · acesso aos clientes autorizados';
+            const showResponsibilities = currentUser?.role === 'admin';
+            ['clientsResponsibleHeader', 'mensalidadesResponsibleHeader', 'inadimplenciaResponsibleHeader'].forEach(id => {
+                document.getElementById(id)?.classList.toggle('hidden', !showResponsibilities);
+            });
             const usersNav = document.getElementById('nav-users');
             usersNav.classList.toggle('hidden', currentUser?.role !== 'admin');
             const auditNav = document.getElementById('nav-audit');
@@ -1120,7 +1120,7 @@
         }
 
         function formatCurrency(val) {
-            if (val === null || val === undefined) return 'Valor restrito';
+            if (val === null || val === undefined) return '';
             if (valuesHidden) return 'R$ ••••••';
             return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
         }
@@ -1165,6 +1165,8 @@
 
         function canManageClient(client) {
             if (currentUser?.role === 'admin') return true;
+            if (client?.canManage === true) return true;
+            if (client?.canManage === false) return false;
             const owner = String(client?.responsible || '').trim().toLowerCase();
             const scope = String(currentUser?.responsibleName || currentUser?.name || '').trim().toLowerCase();
             return Boolean(scope) && owner === scope;
@@ -1173,6 +1175,7 @@
         function canViewClientFinancials(client) {
             if (currentUser?.role === 'admin') return true;
             if (client?.canViewFinancials === true) return true;
+            if (client?.canViewFinancials === false) return false;
             const scope = String(currentUser?.responsibleName || currentUser?.name || '').trim().toLowerCase();
             const owner = String(client?.responsible || '').trim().toLowerCase();
             const collector = String(client?.collector || '').trim().toLowerCase();
@@ -1562,13 +1565,13 @@
                 tr.className = `hover:bg-blue-50/60 transition ${canViewFinancials ? 'cursor-pointer' : ''}`;
                 tr.title = canViewFinancials
                     ? 'Clique para abrir a mensalidade deste cliente'
-                    : 'Os valores deste cliente são restritos ao responsável, recebedor e administrador';
+                    : '';
                 if (canViewFinancials) tr.onclick = () => openReceiptForClient(c.id);
                 tr.innerHTML = `
-                    <td class="p-4 font-semibold text-afisco-blue">${escapeHtml(c.name)}<div class="mt-1 text-[10px] font-medium ${canViewFinancials ? 'text-blue-500' : 'text-slate-400'}"><i class="fa-solid ${canViewFinancials ? 'fa-print' : 'fa-lock'}"></i> ${canViewFinancials ? 'Clique para imprimir' : 'Somente status disponível'}</div></td>
+                    <td class="p-4 font-semibold text-afisco-blue">${escapeHtml(c.name)}${canViewFinancials ? '<div class="mt-1 text-[10px] font-medium text-blue-500"><i class="fa-solid fa-print"></i> Clique para imprimir</div>' : ''}</td>
                     <td class="p-4 text-slate-600">${escapeHtml(c.cnpj)}${c.phone ? `<div class="mt-1 text-xs font-medium text-emerald-700"><i class="fa-brands fa-whatsapp mr-1"></i>${escapeHtml(c.phone)}</div>` : ''}</td>
-                    <td class="p-4 text-slate-700 font-medium"><span class="bg-blue-50 text-blue-800 text-xs px-2.5 py-1 rounded-lg">${escapeHtml(c.responsible)}</span>${c.collector ? `<div class="mt-2 text-[10px] font-semibold text-emerald-700"><i class="fa-solid fa-hand-holding-dollar mr-1"></i>Recebimento: ${escapeHtml(c.collector)}</div>` : ''}</td>
-                    <td class="p-4 font-bold ${canViewFinancials ? 'text-slate-800' : 'text-slate-400'}">${canViewFinancials ? formatCurrency(c.value) : '<span class="inline-flex items-center gap-1 text-xs"><i class="fa-solid fa-lock"></i> Restrito</span>'}</td>
+                    ${currentUser?.role === 'admin' ? `<td class="p-4 text-slate-700 font-medium"><span class="bg-blue-50 text-blue-800 text-xs px-2.5 py-1 rounded-lg">${escapeHtml(c.responsible)}</span>${c.collector ? `<div class="mt-2 text-[10px] font-semibold text-emerald-700"><i class="fa-solid fa-hand-holding-dollar mr-1"></i>Recebimento: ${escapeHtml(c.collector)}</div>` : ''}</td>` : ''}
+                    <td class="p-4 font-bold text-slate-800">${canViewFinancials ? formatCurrency(c.value) : ''}</td>
                     <td class="p-4 text-slate-600">Dia ${c.dueDay}</td>
                     <td class="p-4">
                         <span class="px-2.5 py-1 rounded-full text-xs font-bold ${paymentStatusBadge(paymentStatus)}">
@@ -1578,7 +1581,7 @@
                     </td>
                     <td class="p-4 text-right space-x-2">
                         ${canViewFinancials ? `<button onclick="event.stopPropagation(); openWhatsAppForClient(${c.id})" title="Enviar cobrança pelo WhatsApp" class="text-emerald-700 hover:text-emerald-900 text-xs font-semibold px-2 py-1 rounded bg-emerald-50 hover:bg-emerald-100 transition"><i class="fa-brands fa-whatsapp"></i></button>` : ''}
-                        ${canManage ? `<button onclick="event.stopPropagation(); openClientModal('edit', ${c.id})" title="Editar cliente" class="text-blue-600 hover:text-blue-800 text-xs font-semibold px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 transition"><i class="fa-solid fa-pen"></i></button><button onclick="event.stopPropagation(); openDeleteClientModal(${c.id})" title="Excluir cliente" class="text-red-600 hover:text-red-800 text-xs font-semibold px-2 py-1 rounded bg-red-50 hover:bg-red-100 transition"><i class="fa-solid fa-trash"></i></button>` : `<span class="text-[10px] font-semibold text-slate-400">${canViewFinancials ? 'Somente recebimento' : 'Consulta de status'}</span>`}
+                        ${canManage ? `<button onclick="event.stopPropagation(); openClientModal('edit', ${c.id})" title="Editar cliente" class="text-blue-600 hover:text-blue-800 text-xs font-semibold px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 transition"><i class="fa-solid fa-pen"></i></button><button onclick="event.stopPropagation(); openDeleteClientModal(${c.id})" title="Excluir cliente" class="text-red-600 hover:text-red-800 text-xs font-semibold px-2 py-1 rounded bg-red-50 hover:bg-red-100 transition"><i class="fa-solid fa-trash"></i></button>` : ''}
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -1594,6 +1597,7 @@
             const responsibleInput = document.getElementById('modalClientResponsible');
             responsibleInput.disabled = currentUser?.role !== 'admin';
             responsibleInput.title = currentUser?.role === 'admin' ? '' : 'Seu acesso cadastra clientes somente para você.';
+            document.getElementById('clientResponsibleField').classList.toggle('hidden', currentUser?.role !== 'admin');
             document.getElementById('clientCollectorField').classList.toggle('hidden', currentUser?.role !== 'admin');
             if(mode === 'new') {
                 document.getElementById('clientModalTitle').innerText = "Novo Cliente";
@@ -1716,7 +1720,7 @@
             document.getElementById('billingCountLabel').innerText = `Mostrando ${filtered.length} mensalidades`;
 
             if(filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="10" class="p-8 text-center text-slate-400"><i class="fa-regular fa-calendar-xmark text-2xl mb-2 block"></i>Nenhuma mensalidade encontrada para este período.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400"><i class="fa-regular fa-calendar-xmark text-2xl mb-2 block"></i>Nenhuma mensalidade encontrada para este período.</td></tr>`;
                 return;
             }
 
@@ -1738,19 +1742,24 @@
                 tr.title = canViewFinancials ? 'Clique para visualizar e imprimir' : 'Somente o status está disponível para este cliente';
                 if (canViewFinancials) tr.onclick = () => openReceiptModal(item.id);
                 tr.innerHTML = `
-                    <td class="p-4 font-semibold text-afisco-blue">${escapeHtml(cli.name)}<div class="mt-1 text-[10px] font-medium ${canViewFinancials ? 'text-blue-500' : 'text-slate-400'}"><i class="fa-solid ${canViewFinancials ? 'fa-print' : 'fa-lock'}"></i> ${canViewFinancials ? 'Abrir mensalidade' : 'Valor restrito'}</div></td>
-                    <td class="p-4"><span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700"><i class="fa-solid fa-circle-check"></i>${mesesPagos} ${mesesPagos === 1 ? 'mês' : 'meses'}</span></td>
-                    <td class="p-4 text-slate-600">${escapeHtml(cli.responsible)}</td>
-                    <td class="p-4 text-slate-600">${mesesNomes[item.month]} / ${item.year}</td>
-                    <td class="p-4 font-bold ${canViewFinancials ? 'text-slate-800' : 'text-slate-400'}">${canViewFinancials ? formatCurrency(item.previsto) : '<i class="fa-solid fa-lock mr-1"></i> Restrito'}</td>
-                    <td class="p-4 text-slate-600">${formatDate(item.due)}</td>
-                    <td class="p-4 text-slate-600">${formatDate(item.paidDate)}</td>
-                    <td class="p-4 font-bold ${canViewFinancials ? 'text-emerald-600' : 'text-slate-400'}">${canViewFinancials ? formatCurrency(item.paidValue) : '<i class="fa-solid fa-lock mr-1"></i> Restrito'}</td>
-                    <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge}">${item.status}</span></td>
-                    <td class="p-4 text-right">
-                        <div class="flex justify-end gap-2">
-                            ${canViewFinancials && item.status !== 'Pago' ? `<button onclick="event.stopPropagation(); openWhatsAppForClient(${cli.id}, ${item.id})" class="text-emerald-700 hover:text-emerald-900 text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition flex items-center gap-1"><i class="fa-brands fa-whatsapp"></i> Cobrar</button>` : ''}
-                            ${canViewFinancials ? `<button onclick="event.stopPropagation(); openReceiptModal(${item.id})" class="text-slate-700 hover:text-afisco-blue text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 transition flex items-center gap-1"><i class="fa-solid fa-print"></i> Imprimir</button><button onclick="event.stopPropagation(); openMensalidadeModal(${item.id})" class="text-blue-600 hover:text-blue-800 text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid ${item.status === 'Pago' ? 'fa-pen-to-square' : 'fa-check'}"></i> ${item.status === 'Pago' ? 'Editar' : 'Dar baixa'}</button>` : '<span class="text-xs font-semibold text-slate-400"><i class="fa-solid fa-lock mr-1"></i>Somente status</span>'}
+                    <td class="p-4 align-top font-semibold text-afisco-blue break-words">
+                        ${escapeHtml(cli.name)}
+                        <div class="mt-2"><span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700"><i class="fa-solid fa-circle-check"></i>${mesesPagos} ${mesesPagos === 1 ? 'mês' : 'meses'}</span></div>
+                    </td>
+                    ${currentUser?.role === 'admin' ? `<td class="p-4 align-top text-slate-600 break-words">${escapeHtml(cli.responsible)}</td>` : ''}
+                    <td class="p-4 align-top text-slate-700">
+                        <div class="font-semibold">${mesesNomes[item.month]} / ${item.year}</div>
+                        <div class="mt-1 text-[11px] text-slate-500">Vence: ${formatDate(item.due)}</div>
+                        ${item.paidDate ? `<div class="mt-0.5 text-[11px] text-emerald-700">Pago: ${formatDate(item.paidDate)}</div>` : ''}
+                    </td>
+                    <td class="p-4 align-top">
+                        ${canViewFinancials ? `<div><span class="text-[10px] uppercase text-slate-400">Previsto</span><div class="font-bold text-slate-800">${formatCurrency(item.previsto)}</div></div><div class="mt-2"><span class="text-[10px] uppercase text-slate-400">Pago</span><div class="font-bold text-emerald-600">${formatCurrency(item.paidValue)}</div></div>` : ''}
+                    </td>
+                    <td class="p-4 align-top"><span class="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge}">${item.status}</span></td>
+                    <td class="p-4 align-top text-right">
+                        <div class="flex flex-wrap justify-end gap-2">
+                            ${canViewFinancials && item.status !== 'Pago' ? `<button onclick="event.stopPropagation(); openWhatsAppForClient(${cli.id}, ${item.id})" title="Cobrar pelo WhatsApp" aria-label="Cobrar pelo WhatsApp" class="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100 hover:text-emerald-900"><i class="fa-brands fa-whatsapp"></i></button>` : ''}
+                            ${canViewFinancials ? `<button onclick="event.stopPropagation(); openReceiptModal(${item.id})" title="Imprimir mensalidade" aria-label="Imprimir mensalidade" class="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 transition hover:bg-slate-200 hover:text-afisco-blue"><i class="fa-solid fa-print"></i></button><button onclick="event.stopPropagation(); openMensalidadeModal(${item.id})" title="${item.status === 'Pago' ? 'Editar pagamento' : 'Dar baixa'}" aria-label="${item.status === 'Pago' ? 'Editar pagamento' : 'Dar baixa'}" class="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 transition hover:bg-blue-100 hover:text-blue-800"><i class="fa-solid ${item.status === 'Pago' ? 'fa-pen-to-square' : 'fa-check'}"></i></button>` : ''}
                         </div>
                     </td>
                 `;
@@ -1766,7 +1775,7 @@
             const client = clientesData.find(item => item.id === clientId);
             if (!client) return;
             if (!canViewClientFinancials(client)) {
-                showToast('Os valores deste cliente são restritos ao responsável, recebedor e administrador.', 'error');
+                showToast('Esta cobrança não está disponível no seu acesso.', 'error');
                 return;
             }
             let phone = String(client.phone || '').replace(/\D/g, '').replace(/^0+/, '');
@@ -1878,7 +1887,7 @@
 
                         <footer class="mt-5 flex items-end justify-between gap-6">
                             <div class="text-[10px] leading-4 text-slate-500">
-                                <div>Responsável pelo atendimento: ${escapeHtml(cli.responsible || 'Não informado')}</div>
+                                ${currentUser?.role === 'admin' ? `<div>Responsável pelo atendimento: ${escapeHtml(cli.responsible || 'Não informado')}</div>` : ''}
                                 <div>Afisco Contabilidade</div>
                             </div>
                             <div class="w-56 border-t border-slate-400 pt-1 text-center text-[10px] text-slate-500">Assinatura / autenticação</div>
@@ -1917,7 +1926,7 @@
             document.getElementById('modalMensalidadeInfo').value = `${cli ? cli.name : 'Cliente'} (${mesesNomes[item.month]}/${item.year})`;
             document.getElementById('modalMensalidadePrevisto').value = item.previsto;
             document.getElementById('modalMensalidadePrevisto').disabled = cli ? !canManageClient(cli) : true;
-            document.getElementById('modalMensalidadePrevisto').title = cli && !canManageClient(cli) ? 'Você pode dar baixa, mas o valor previsto só pode ser alterado pelo responsável.' : '';
+            document.getElementById('modalMensalidadePrevisto').title = cli && !canManageClient(cli) ? 'Você pode dar baixa, mas o valor previsto só pode ser alterado pela administração.' : '';
             document.getElementById('modalMensalidadePago').value = ['Pago', 'Parcial'].includes(item.status) ? item.paidValue : item.previsto;
             document.getElementById('modalMensalidadeDataPgto').value = item.paidDate || new Date().toISOString().split('T')[0];
             document.getElementById('modalMensalidadeStatus').value = ['Em aberto', 'Vencido'].includes(item.status) ? 'Pago' : item.status;
@@ -2011,9 +2020,9 @@
                 tr.className = "hover:bg-red-50/40 transition";
                 tr.innerHTML = `
                     <td class="p-4 font-semibold text-afisco-blue">${escapeHtml(cli.name)}<br><span class="text-xs text-slate-400 font-normal">${escapeHtml(cli.cnpj)}</span></td>
-                    <td class="p-4 text-slate-700">${escapeHtml(cli.responsible)}</td>
+                    ${currentUser?.role === 'admin' ? `<td class="p-4 text-slate-700">${escapeHtml(cli.responsible)}</td>` : ''}
                     <td class="p-4 font-bold text-afisco-red">${item.count} título(s)</td>
-                    <td class="p-4 font-bold ${item.canViewFinancials ? 'text-afisco-red' : 'text-slate-400'} text-base">${item.canViewFinancials ? formatCurrency(item.totalDevido) : '<i class="fa-solid fa-lock mr-1"></i> Restrito'}</td>
+                    <td class="p-4 font-bold text-afisco-red text-base">${item.canViewFinancials ? formatCurrency(item.totalDevido) : ''}</td>
                     <td class="p-4 text-slate-600">${formatDate(item.oldestDate)}</td>
                     <td class="p-4 text-right">
                         <button onclick="goToClientFicha(${cli.id})" class="text-blue-600 hover:text-blue-800 text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 transition"><i class="fa-solid fa-eye"></i> Ver Ficha</button>
@@ -2150,10 +2159,10 @@
                     historyRows += `
                         <tr class="hover:bg-slate-50 transition">
                             <td class="p-3 font-medium">${mesesNomes[m.month]} / ${m.year}</td>
-                            <td class="p-3">${canViewFinancials ? formatCurrency(m.previsto) : '<i class="fa-solid fa-lock mr-1 text-slate-400"></i><span class="text-slate-400">Restrito</span>'}</td>
+                            <td class="p-3">${canViewFinancials ? formatCurrency(m.previsto) : ''}</td>
                             <td class="p-3">${formatDate(m.due)}</td>
                             <td class="p-3">${formatDate(m.paidDate)}</td>
-                            <td class="p-3 font-semibold ${canViewFinancials ? 'text-emerald-600' : 'text-slate-400'}">${canViewFinancials ? formatCurrency(m.paidValue) : '<i class="fa-solid fa-lock mr-1"></i>Restrito'}</td>
+                            <td class="p-3 font-semibold text-emerald-600">${canViewFinancials ? formatCurrency(m.paidValue) : ''}</td>
                             <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-semibold ${m.status === 'Pago' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-afisco-red'}">${m.status}</span></td>
                         </tr>
                     `;
@@ -2167,13 +2176,12 @@
                         <h3 class="text-lg font-bold text-afisco-blue mt-1">${escapeHtml(cli.name)}</h3>
                         <p class="text-xs text-slate-600 mt-0.5">CNPJ: ${escapeHtml(cli.cnpj)}</p>
                         <p class="text-xs text-slate-600 mt-0.5">WhatsApp: ${escapeHtml(cli.phone || 'Não informado')}</p>
-                        <p class="text-xs text-slate-600 mt-0.5">Responsável: <span class="font-semibold text-blue-800">${escapeHtml(cli.responsible)}</span></p>
-                        ${cli.collector ? `<p class="text-xs text-emerald-700 mt-0.5">Acesso para recebimento: <span class="font-semibold">${escapeHtml(cli.collector)}</span></p>` : ''}
+                        ${currentUser?.role === 'admin' ? `<p class="text-xs text-slate-600 mt-0.5">Responsável: <span class="font-semibold text-blue-800">${escapeHtml(cli.responsible)}</span></p>${cli.collector ? `<p class="text-xs text-emerald-700 mt-0.5">Acesso para recebimento: <span class="font-semibold">${escapeHtml(cli.collector)}</span></p>` : ''}` : ''}
                         <p class="text-xs text-slate-600 mt-0.5">Início do Contrato: ${formatDate(cli.start)}</p>
                     </div>
                     <div>
                         <div class="text-xs uppercase font-bold text-slate-400 tracking-wider">Condições Comerciais</div>
-                        <div class="text-xl font-bold ${canViewFinancials ? 'text-slate-800' : 'text-slate-400'} mt-1">${canViewFinancials ? `${formatCurrency(cli.value)} <span class="text-xs font-normal text-slate-500">/mês</span>` : '<i class="fa-solid fa-lock mr-1"></i> Valor restrito'}</div>
+                        <div class="text-xl font-bold text-slate-800 mt-1">${canViewFinancials ? `${formatCurrency(cli.value)} <span class="text-xs font-normal text-slate-500">/mês</span>` : ''}</div>
                         <p class="text-xs text-slate-600 mt-1">Dia de Vencimento: Todo dia ${cli.dueDay}</p>
                         <p class="text-xs text-slate-600 mt-1">Último reajuste: ${formatDate(cli.lastAdjustment)}</p>
                         <p class="text-xs text-slate-600 mt-1">Status: <span class="font-bold ${cli.status === 'ativo' ? 'text-emerald-600' : 'text-slate-500'}">${cli.status.toUpperCase()}</span></p>
@@ -2182,11 +2190,10 @@
                         <div>
                             <div class="text-xs uppercase font-bold text-slate-400 tracking-wider">Resumo Financeiro Histórico</div>
                             <div class="text-sm font-semibold text-blue-700 mt-2">Meses pagos: ${mesesPagosCli}</div>
-                            <div class="text-sm font-semibold ${canViewFinancials ? 'text-emerald-600' : 'text-slate-400'} mt-1">Total Pago: ${canViewFinancials ? formatCurrency(totalPagoCli) : 'Restrito'}</div>
-                            <div class="text-sm font-semibold ${canViewFinancials ? 'text-afisco-red' : 'text-slate-400'} mt-1">Total em Aberto/Vencido: ${canViewFinancials ? formatCurrency(totalDevendoCli) : 'Restrito'}</div>
+                            ${canViewFinancials ? `<div class="text-sm font-semibold text-emerald-600 mt-1">Total Pago: ${formatCurrency(totalPagoCli)}</div><div class="text-sm font-semibold text-afisco-red mt-1">Total em Aberto/Vencido: ${formatCurrency(totalDevendoCli)}</div>` : ''}
                         </div>
                         <div class="mt-4 flex gap-2">
-                            ${canViewFinancials ? `<button onclick="openWhatsAppForClient(${cli.id})" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-semibold transition"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>` : '<span class="text-xs font-semibold text-slate-400"><i class="fa-solid fa-lock mr-1"></i>Somente status</span>'}
+                            ${canViewFinancials ? `<button onclick="openWhatsAppForClient(${cli.id})" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-semibold transition"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>` : ''}
                             ${canManageClient(cli) ? `<button onclick="openClientModal('edit', ${cli.id})" class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-semibold transition"><i class="fa-solid fa-pen"></i> Editar Cadastro</button>` : ''}
                         </div>
                     </div>
