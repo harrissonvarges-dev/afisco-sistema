@@ -12,6 +12,27 @@ function samePerson(left, right) {
     return Boolean(expected) && String(left || '').trim().toLowerCase() === expected;
 }
 
+function paymentPixForResponsible(responsible) {
+    const name = String(responsible || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+    if (name === 'helio') {
+        return { key: '77 9 9145-8383', recipient: 'Helio Gomes Varges', qr: 'pix-qrcode-caixa.jpeg', label: 'PIX CAIXA' };
+    }
+    if (name === 'harrisson') {
+        return { key: '77 9 9148-3477', recipient: 'Harrisson Bahia Varges', qr: 'pix-qrcode-harrisson.jpeg', label: 'PIX HARRISSON' };
+    }
+    if (name === 'marcia' || name === 'marcinha') {
+        return { key: '77 9 9206-3910', recipient: 'Marcia Luiz Bahia Varges', qr: '', label: 'PIX MÁRCIA' };
+    }
+    if (name === 'nando') {
+        return { key: '77 8813-7181', recipient: 'Eronaldo Gomes Varges', qr: '', label: 'PIX NANDO' };
+    }
+    return { key: '', recipient: '', qr: '', label: '' };
+}
+
 function mapClienteForUser(row, user, isAdmin) {
     const cliente = mapCliente(row);
     const isOwner = samePerson(row.responsible, user.responsibleName);
@@ -19,11 +40,13 @@ function mapClienteForUser(row, user, isAdmin) {
     const canViewFinancials = isAdmin
         || isOwner
         || isCollector;
+    const paymentPix = canViewFinancials ? paymentPixForResponsible(row.responsible) : { key: '', recipient: '', qr: '', label: '' };
     return {
         ...cliente,
         responsible: isAdmin ? cliente.responsible : '',
         collector: isAdmin ? cliente.collector : '',
         value: canViewFinancials ? cliente.value : null,
+        paymentPix,
         canViewFinancials,
         canManage: isAdmin || isOwner
     };

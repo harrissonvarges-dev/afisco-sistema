@@ -52,9 +52,10 @@ module.exports = async function handler(req, res) {
             return res.status(200).send(`\uFEFF${lines.join('\r\n')}`);
         }
 
-        const [clientesResult, mensalidadesResult, usuariosResult, auditoriaResult] = await Promise.all([
+        const [clientesResult, mensalidadesResult, gastosResult, usuariosResult, auditoriaResult] = await Promise.all([
             pool.query('SELECT * FROM clientes ORDER BY id ASC'),
             pool.query('SELECT * FROM mensalidades ORDER BY id ASC'),
+            pool.query('SELECT g.*, u.name AS user_name FROM gastos g JOIN usuarios u ON u.id=g.user_id ORDER BY g.id ASC'),
             pool.query('SELECT * FROM usuarios ORDER BY id ASC'),
             pool.query('SELECT id, user_name, action, entity, entity_id, details, created_at FROM auditoria ORDER BY id ASC')
         ]);
@@ -63,6 +64,19 @@ module.exports = async function handler(req, res) {
             exportedAt: now.toISOString(),
             clientes: clientesResult.rows.map(mapCliente),
             mensalidades: mensalidadesResult.rows.map(mapMensalidade),
+            gastos: gastosResult.rows.map(row => ({
+                id: Number(row.id),
+                userId: Number(row.user_id),
+                userName: row.user_name,
+                description: row.description,
+                category: row.category,
+                amount: Number(row.amount || 0),
+                date: row.expense_date ? new Date(row.expense_date).toISOString().slice(0, 10) : '',
+                paymentMethod: row.payment_method,
+                notes: row.notes,
+                createdAt: row.created_at,
+                updatedAt: row.updated_at
+            })),
             usuarios: usuariosResult.rows.map(mapUser),
             auditoria: auditoriaResult.rows.map(row => ({
                 id: Number(row.id),
@@ -76,7 +90,8 @@ module.exports = async function handler(req, res) {
         };
         await recordAudit(pool, user, 'backup_completo', 'backup', fileDate, {
             clients: backup.clientes.length,
-            monthlyFees: backup.mensalidades.length
+            monthlyFees: backup.mensalidades.length,
+            expenses: backup.gastos.length
         });
         res.setHeader('Cache-Control', 'no-store');
         res.setHeader('Content-Type', 'application/json; charset=utf-8');

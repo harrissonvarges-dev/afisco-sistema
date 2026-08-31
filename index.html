@@ -47,6 +47,7 @@
         let mensalidadesData = [];
         let usuariosData = [];
         let auditoriaData = [];
+        let gastosData = [];
         let currentUser = null;
         let appLoaded = false;
         let valuesHidden = false;
@@ -154,7 +155,9 @@
         .receipt-copies { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .receipt-copy + .receipt-copy { border-left: 2px dashed #94a3b8; }
         .pix-qr-crop { position: relative; width: 96px; height: 96px; overflow: hidden; background: #fff; }
-        .pix-qr-crop img { position: absolute; width: 166px; max-width: none; left: -36px; top: -74px; }
+        .pix-qr-crop img { position: absolute; max-width: none; }
+        .pix-qr-caixa img { width: 166px; left: -36px; top: -74px; }
+        .pix-qr-harrisson img { width: 134px; left: -19px; top: -69px; }
         @media (max-width: 760px) {
             .receipt-copies { grid-template-columns: 1fr; }
             .receipt-copy + .receipt-copy { border-left: 0; border-top: 2px dashed #94a3b8; }
@@ -289,6 +292,9 @@
                 </button>
                 <button onclick="switchTab('mensalidades')" id="nav-mensalidades" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 text-blue-200 hover:bg-blue-900 hover:text-white">
                     <i class="fa-solid fa-file-invoice-dollar"></i> Mensalidades
+                </button>
+                <button onclick="switchTab('gastos')" id="nav-gastos" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 text-blue-200 hover:bg-blue-900 hover:text-white">
+                    <i class="fa-solid fa-wallet"></i> Gastos
                 </button>
                 <button onclick="switchTab('inadimplencia')" id="nav-inadimplencia" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-2 text-blue-200 hover:bg-blue-900 hover:text-white">
                     <i class="fa-solid fa-triangle-exclamation text-red-400"></i> Inadimplência
@@ -651,6 +657,57 @@
             </div>
         </div>
 
+        <!-- ================= TAB: GASTOS DO ESCRITÓRIO ================= -->
+        <div id="tab-gastos" class="tab-content space-y-6 hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-afisco-border">
+                <div>
+                    <h2 class="text-xl font-bold text-afisco-blue flex items-center gap-2">
+                        <i class="fa-solid fa-wallet text-afisco-red"></i> Gastos do Escritório
+                    </h2>
+                    <p class="text-xs text-afisco-textMuted mt-1">Todos visualizam os lançamentos. Cada funcionário administra os próprios gastos e Hélio administra todos.</p>
+                </div>
+                <button onclick="openGastoModal('new')" class="bg-afisco-red hover:bg-afisco-darkRed text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition shadow flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i> Novo Gasto
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div class="rounded-2xl border border-afisco-border bg-white p-5 shadow-sm">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total do período</div>
+                    <div id="gastosTotal" class="mt-2 text-2xl font-black text-afisco-red">R$ 0,00</div>
+                </div>
+                <div class="rounded-2xl border border-afisco-border bg-white p-5 shadow-sm">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Quantidade de gastos</div>
+                    <div id="gastosQuantidade" class="mt-2 text-2xl font-black text-afisco-blue">0</div>
+                </div>
+                <div class="rounded-2xl border border-afisco-border bg-white p-5 shadow-sm">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Média por lançamento</div>
+                    <div id="gastosMedia" class="mt-2 text-2xl font-black text-amber-600">R$ 0,00</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-3 rounded-2xl border border-afisco-border bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-5">
+                <input id="gastosSearchInput" oninput="renderGastosTable()" class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-afisco-blue lg:col-span-2" placeholder="Buscar descrição ou funcionário...">
+                <select id="gastosMonth" onchange="loadGastos()" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-afisco-blue">
+                    <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option><option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+                </select>
+                <select id="gastosYear" onchange="loadGastos()" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-afisco-blue"></select>
+                <select id="gastosCategoryFilter" onchange="renderGastosTable()" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-afisco-blue">
+                    <option value="todos">Todas as categorias</option>
+                    <option>Material de escritório</option><option>Transporte</option><option>Alimentação</option><option>Impostos e taxas</option><option>Serviços</option><option>Manutenção</option><option>Outros</option>
+                </select>
+            </div>
+
+            <div class="overflow-hidden rounded-2xl border border-afisco-border bg-white shadow-sm">
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[860px] border-collapse text-left">
+                        <thead><tr class="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase text-slate-600"><th class="p-4">Data</th><th class="p-4">Descrição</th><th class="p-4">Categoria</th><th class="p-4">Pagamento</th><th class="p-4">Cadastrado por</th><th class="p-4">Valor</th><th class="p-4 text-right">Ações</th></tr></thead>
+                        <tbody id="gastosTableBody" class="divide-y divide-slate-100 text-sm"><tr><td colspan="7" class="p-8 text-center text-slate-400">Abra a aba para carregar os gastos.</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <!-- ================= 6. TAB: FICHA DO CLIENTE ================= -->
         <div id="tab-ficha" class="tab-content space-y-6 hidden">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-afisco-border">
@@ -718,6 +775,39 @@
         </div>
 
     </main>
+
+    <!-- Modal de Cadastro / Edição de Gasto -->
+    <div id="gastoModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+        <div class="w-full max-w-lg space-y-4 rounded-2xl bg-white p-6 shadow-xl">
+            <div class="flex items-center justify-between border-b pb-3">
+                <div><h3 id="gastoModalTitle" class="text-lg font-bold text-afisco-blue">Novo Gasto</h3><p id="gastoModalOwner" class="mt-0.5 text-xs text-slate-500">O lançamento ficará identificado com seu nome.</p></div>
+                <button onclick="closeGastoModal()" class="text-slate-400 hover:text-slate-600" aria-label="Fechar"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <input type="hidden" id="modalGastoId">
+            <div class="space-y-3">
+                <div>
+                    <label class="mb-1 block text-xs font-semibold text-slate-600">Descrição do gasto</label>
+                    <input id="modalGastoDescription" maxlength="160" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-afisco-blue" placeholder="Ex.: Papel e tinta para impressora">
+                </div>
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div><label class="mb-1 block text-xs font-semibold text-slate-600">Data</label><input id="modalGastoDate" type="date" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-afisco-blue"></div>
+                    <div><label class="mb-1 block text-xs font-semibold text-slate-600">Valor</label><input id="modalGastoAmount" type="number" min="0.01" step="0.01" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-afisco-blue" placeholder="0,00"></div>
+                </div>
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold text-slate-600">Categoria</label>
+                        <select id="modalGastoCategory" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-afisco-blue"><option>Material de escritório</option><option>Transporte</option><option>Alimentação</option><option>Impostos e taxas</option><option>Serviços</option><option>Manutenção</option><option>Outros</option></select>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold text-slate-600">Forma de pagamento</label>
+                        <select id="modalGastoPayment" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-afisco-blue"><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Boleto</option><option>Transferência</option><option>Outro</option></select>
+                    </div>
+                </div>
+                <div><label class="mb-1 block text-xs font-semibold text-slate-600">Observação <span class="font-normal text-slate-400">(opcional)</span></label><textarea id="modalGastoNotes" rows="2" maxlength="500" class="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-afisco-blue" placeholder="Detalhes adicionais..."></textarea></div>
+            </div>
+            <div class="flex justify-end gap-2 border-t pt-3"><button onclick="closeGastoModal()" class="rounded-xl bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200">Cancelar</button><button id="saveGastoButton" onclick="saveGastoFromModal()" class="rounded-xl bg-afisco-blue px-4 py-2 text-xs font-semibold text-white hover:bg-blue-800 disabled:opacity-60">Salvar Gasto</button></div>
+        </div>
+    </div>
 
     <!-- Modal de Cadastro / Edição de Cliente -->
     <div id="clientModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
@@ -1093,6 +1183,7 @@
                 mensalidadesData = [];
                 usuariosData = [];
                 auditoriaData = [];
+                gastosData = [];
                 document.getElementById('loginUsername').value = '';
                 document.getElementById('loginPassword').value = '';
                 switchTab('dashboard');
@@ -1107,6 +1198,7 @@
             renderInadimplenciaTable();
             renderAnaliseTab();
             populateFichaSelect();
+            renderGastosTable();
         }
 
         async function handleBillingPeriodChange() {
@@ -1144,6 +1236,7 @@
             if(tabId === 'dashboard') renderDashboard();
             if(tabId === 'clients') renderClientsTable();
             if(tabId === 'mensalidades') renderMensalidadesTable();
+            if(tabId === 'gastos') loadGastos();
             if(tabId === 'inadimplencia') renderInadimplenciaTable();
             if(tabId === 'analise') renderAnaliseTab();
             if(tabId === 'ficha') renderClientFicha();
@@ -1243,6 +1336,158 @@
             if (!date) return '-';
             const [year, month, day] = date.slice(0, 10).split('-');
             return `${day}/${month}/${year}`;
+        }
+
+        // ================= GASTOS DO ESCRITÓRIO =================
+        function setGastosPeriodDefaults() {
+            const now = new Date();
+            const monthSelect = document.getElementById('gastosMonth');
+            const yearSelect = document.getElementById('gastosYear');
+            if (!monthSelect || !yearSelect) return;
+            if (!yearSelect.options.length) {
+                for (let year = now.getFullYear() - 3; year <= now.getFullYear() + 1; year++) {
+                    const option = document.createElement('option');
+                    option.value = String(year);
+                    option.innerText = String(year);
+                    yearSelect.appendChild(option);
+                }
+                monthSelect.value = String(now.getMonth() + 1);
+                yearSelect.value = String(now.getFullYear());
+            }
+        }
+
+        async function loadGastos() {
+            setGastosPeriodDefaults();
+            const month = Number(document.getElementById('gastosMonth')?.value || new Date().getMonth() + 1);
+            const year = Number(document.getElementById('gastosYear')?.value || new Date().getFullYear());
+            const tbody = document.getElementById('gastosTableBody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Carregando gastos...</td></tr>';
+            try {
+                gastosData = await apiRequest(`/api/gastos?month=${month}&year=${year}`);
+                renderGastosTable();
+            } catch (error) {
+                if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-red-500">${escapeHtml(error.message)}</td></tr>`;
+                showToast(error.message, 'error');
+            }
+        }
+
+        function canManageGasto(gasto) {
+            return currentUser?.role === 'admin' || Number(gasto?.userId) === Number(currentUser?.id);
+        }
+
+        function renderGastosTable() {
+            const tbody = document.getElementById('gastosTableBody');
+            if (!tbody) return;
+            const search = String(document.getElementById('gastosSearchInput')?.value || '').trim().toLowerCase();
+            const category = document.getElementById('gastosCategoryFilter')?.value || 'todos';
+            const filtered = gastosData.filter(gasto => {
+                const matchesSearch = !search
+                    || gasto.description.toLowerCase().includes(search)
+                    || gasto.userName.toLowerCase().includes(search)
+                    || gasto.notes.toLowerCase().includes(search);
+                const matchesCategory = category === 'todos' || gasto.category === category;
+                return matchesSearch && matchesCategory;
+            });
+            const total = filtered.reduce((sum, gasto) => sum + Number(gasto.amount || 0), 0);
+            document.getElementById('gastosTotal').innerText = formatCurrency(total);
+            document.getElementById('gastosQuantidade').innerText = String(filtered.length);
+            document.getElementById('gastosMedia').innerText = formatCurrency(filtered.length ? total / filtered.length : 0);
+
+            if (!filtered.length) {
+                tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-400"><i class="fa-solid fa-receipt mb-2 block text-2xl"></i>Nenhum gasto encontrado neste período.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = filtered.map(gasto => {
+                const canManage = canManageGasto(gasto);
+                return `
+                    <tr class="transition hover:bg-blue-50/50">
+                        <td class="p-4 whitespace-nowrap text-slate-600">${formatDate(gasto.date)}</td>
+                        <td class="p-4"><div class="font-semibold text-afisco-blue">${escapeHtml(gasto.description)}</div>${gasto.notes ? `<div class="mt-1 max-w-xs truncate text-xs text-slate-400" title="${escapeHtml(gasto.notes)}">${escapeHtml(gasto.notes)}</div>` : ''}</td>
+                        <td class="p-4"><span class="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">${escapeHtml(gasto.category)}</span></td>
+                        <td class="p-4 text-slate-600">${escapeHtml(gasto.paymentMethod || '-')}</td>
+                        <td class="p-4"><span class="font-semibold text-slate-700">${escapeHtml(gasto.userName)}</span></td>
+                        <td class="p-4 whitespace-nowrap font-black text-afisco-red">${formatCurrency(gasto.amount)}</td>
+                        <td class="p-4 text-right">
+                            ${canManage ? `<div class="flex justify-end gap-2"><button onclick="openGastoModal('edit', ${gasto.id})" title="Editar gasto" class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100"><i class="fa-solid fa-pen"></i></button><button onclick="deleteGasto(${gasto.id})" title="Excluir gasto" class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-700 hover:bg-red-100"><i class="fa-solid fa-trash"></i></button></div>` : '<span class="text-xs text-slate-300">Somente leitura</span>'}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function openGastoModal(mode, id = null) {
+            const isEdit = mode === 'edit';
+            const gasto = isEdit ? gastosData.find(item => item.id === id) : null;
+            if (isEdit && (!gasto || !canManageGasto(gasto))) {
+                showToast('Você pode alterar somente os seus próprios gastos.', 'error');
+                return;
+            }
+            document.getElementById('modalGastoId').value = gasto?.id || '';
+            document.getElementById('gastoModalTitle').innerText = isEdit ? 'Editar Gasto' : 'Novo Gasto';
+            document.getElementById('gastoModalOwner').innerText = isEdit
+                ? `Cadastrado por ${gasto.userName}`
+                : `Será cadastrado em nome de ${currentUser?.name || 'você'}.`;
+            document.getElementById('modalGastoDescription').value = gasto?.description || '';
+            document.getElementById('modalGastoDate').value = gasto?.date || new Date().toISOString().slice(0, 10);
+            document.getElementById('modalGastoAmount').value = gasto?.amount || '';
+            document.getElementById('modalGastoCategory').value = gasto?.category || 'Material de escritório';
+            document.getElementById('modalGastoPayment').value = gasto?.paymentMethod || 'Pix';
+            document.getElementById('modalGastoNotes').value = gasto?.notes || '';
+            document.getElementById('gastoModal').classList.remove('hidden');
+            setTimeout(() => document.getElementById('modalGastoDescription')?.focus(), 50);
+        }
+
+        function closeGastoModal() {
+            document.getElementById('gastoModal').classList.add('hidden');
+        }
+
+        async function saveGastoFromModal() {
+            const id = Number(document.getElementById('modalGastoId').value || 0);
+            const description = document.getElementById('modalGastoDescription').value.trim();
+            const date = document.getElementById('modalGastoDate').value;
+            const amount = Number(document.getElementById('modalGastoAmount').value || 0);
+            const category = document.getElementById('modalGastoCategory').value;
+            const paymentMethod = document.getElementById('modalGastoPayment').value;
+            const notes = document.getElementById('modalGastoNotes').value.trim();
+            if (!description || !date || amount <= 0) {
+                showToast('Preencha a descrição, a data e um valor maior que zero.', 'error');
+                return;
+            }
+            const button = document.getElementById('saveGastoButton');
+            const originalLabel = button.innerText;
+            button.disabled = true;
+            button.innerText = 'Salvando...';
+            try {
+                await apiRequest('/api/gastos', {
+                    method: id ? 'PUT' : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: id || undefined, description, date, amount, category, paymentMethod, notes })
+                });
+                closeGastoModal();
+                const selectedDate = new Date(`${date}T12:00:00`);
+                document.getElementById('gastosMonth').value = String(selectedDate.getMonth() + 1);
+                document.getElementById('gastosYear').value = String(selectedDate.getFullYear());
+                await loadGastos();
+                showToast(id ? 'Gasto atualizado no Neon.' : 'Gasto salvo no Neon.');
+            } catch (error) {
+                showToast(error.message, 'error');
+            } finally {
+                button.disabled = false;
+                button.innerText = originalLabel;
+            }
+        }
+
+        async function deleteGasto(id) {
+            const gasto = gastosData.find(item => item.id === id);
+            if (!gasto || !canManageGasto(gasto)) return;
+            if (!confirm(`Excluir o gasto "${gasto.description}"?`)) return;
+            try {
+                await apiRequest(`/api/gastos?id=${id}`, { method: 'DELETE' });
+                await loadGastos();
+                showToast('Gasto excluído.');
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
         }
 
         // ================= DASHBOARD LOGIC =================
@@ -1395,6 +1640,9 @@
                 mensalidade_criada: 'Criou mensalidade',
                 pagamento_atualizado: 'Atualizou pagamento',
                 mensalidade_excluida: 'Excluiu mensalidade',
+                gasto_criado: 'Cadastrou gasto',
+                gasto_atualizado: 'Alterou gasto',
+                gasto_excluido: 'Excluiu gasto',
                 usuario_criado: 'Criou acesso',
                 usuario_atualizado: 'Alterou acesso',
                 exportacao_csv: 'Exportou planilha',
@@ -1404,6 +1652,10 @@
 
         function auditDetailText(item) {
             const details = item.details || {};
+            if (item.entity === 'gasto' && details.description) {
+                const amount = details.amount !== undefined ? ` · ${formatCurrency(details.amount)}` : '';
+                return `${details.description}${amount}${details.date ? ` · ${formatDate(details.date)}` : ''}`;
+            }
             if (details.clientName) {
                 const period = details.month && details.year ? ` · ${mesesNomes[Number(details.month)]}/${details.year}` : '';
                 const payment = details.paidValue !== undefined ? ` · ${formatCurrency(details.paidValue)}` : '';
@@ -1914,8 +2166,6 @@
             openReceiptModal(item.id);
         }
 
-        const PIX_KEY_DISPLAY = '77 9 9145-8383';
-
         function getReceiptData(id) {
             const item = mensalidadesData.find(m => m.id === id);
             if (!item || !canViewMensalidadeFinancials(item)) return null;
@@ -1930,17 +2180,30 @@
             return 'bg-blue-100 text-blue-800';
         }
 
-        function buildPixQrHtml() {
+        function getClientPaymentPix(cli) {
+            const pix = cli?.paymentPix || {};
+            return {
+                key: String(pix.key || ''),
+                recipient: String(pix.recipient || ''),
+                qr: ['pix-qrcode-caixa.jpeg', 'pix-qrcode-harrisson.jpeg'].includes(pix.qr) ? pix.qr : '',
+                label: String(pix.label || 'PIX')
+            };
+        }
+
+        function buildPixQrHtml(pix) {
+            if (!pix.qr) return '';
+            const variantClass = pix.qr === 'pix-qrcode-harrisson.jpeg' ? 'pix-qr-harrisson' : 'pix-qr-caixa';
             return `
-                <div class="pix-qr-crop shrink-0 rounded-md border border-slate-200" aria-label="QR Code PIX">
-                    <img src="pix-qrcode-caixa.jpeg" alt="QR Code PIX da Afisco">
+                <div class="pix-qr-crop ${variantClass} shrink-0 rounded-md border border-slate-200" aria-label="QR Code PIX">
+                    <img src="${pix.qr}" alt="QR Code PIX da mensalidade">
                 </div>
             `;
         }
 
-        function buildReceiptCopy(item, cli, copyLabel) {
+        function buildReceiptCopy(item, cli, copyLabel, pix) {
             const isPaid = item.status === 'Pago';
             const isOfficeCopy = copyLabel === 'VIA DO ESCRITÓRIO';
+            const showQr = !isOfficeCopy && Boolean(pix.qr);
             const displayValue = isPaid && item.paidValue > 0 ? item.paidValue : item.previsto;
             const documentTitle = isPaid ? 'RECIBO' : 'MENSALIDADE';
             const receiptNumber = `AF-${item.year}${String(item.month).padStart(2, '0')}-${item.id}`;
@@ -1960,7 +2223,7 @@
                         </div>
                     </header>
 
-                    <div class="mt-2 grid flex-1 ${isOfficeCopy ? 'grid-cols-1' : 'grid-cols-[1fr_auto]'} gap-3">
+                    <div class="mt-2 grid flex-1 ${showQr ? 'grid-cols-[1fr_auto]' : 'grid-cols-1'} gap-3">
                         <div class="min-w-0">
                             <div class="text-[9px] uppercase text-slate-400">Cliente</div>
                             <div class="truncate text-xs font-black text-slate-800">${escapeHtml(cli.name)}</div>
@@ -1974,17 +2237,14 @@
                                 ${item.paidDate ? `<div><span class="block uppercase text-slate-400">Pago em</span><strong>${formatDate(item.paidDate)}</strong></div>` : ''}
                             </div>
 
-                            <div class="mt-2 rounded-lg bg-blue-50 px-2 py-1.5 text-[9px] leading-3 text-afisco-blue">
-                                <strong class="block"><i class="fa-brands fa-pix mr-1"></i>PIX: ${PIX_KEY_DISPLAY}</strong>
-                                <span>${isPaid ? 'Pagamento identificado. Obrigado!' : 'Pague pelo número ou pelo QR Code ao lado.'}</span>
-                            </div>
+                            ${pix.key ? `<div class="mt-2 rounded-lg bg-blue-50 px-2 py-1.5 text-[9px] leading-3 text-afisco-blue"><strong class="block"><i class="fa-brands fa-pix mr-1"></i>PIX: ${escapeHtml(pix.key)}</strong>${pix.recipient ? `<strong class="block text-[8px] text-slate-700">Em nome de: ${escapeHtml(pix.recipient)}</strong>` : ''}<span>${isPaid ? 'Pagamento identificado. Obrigado!' : showQr ? 'Pague pelo número ou pelo QR Code ao lado.' : 'Pague utilizando a chave PIX acima.'}</span></div>` : ''}
                         </div>
-                        ${isOfficeCopy ? '' : `
+                        ${showQr ? `
                             <div class="flex flex-col items-center justify-center">
-                                ${buildPixQrHtml()}
-                                <span class="mt-1 text-[8px] font-bold text-slate-500">PIX CAIXA</span>
+                                ${buildPixQrHtml(pix)}
+                                <span class="mt-1 text-[8px] font-bold text-slate-500">${escapeHtml(pix.label)}</span>
                             </div>
-                        `}
+                        ` : ''}
                     </div>
 
                     <footer class="mt-2 flex items-end justify-between gap-3 text-[8px] text-slate-500">
@@ -1996,12 +2256,13 @@
         }
 
         function buildReceiptDocument(item, cli) {
+            const pix = getClientPaymentPix(cli);
             return `
                 <article class="receipt-document mb-4 overflow-hidden rounded-xl border border-slate-300 bg-white" data-receipt-id="${item.id}">
                     <div class="h-1.5 bg-afisco-red"></div>
                     <div class="receipt-copies">
-                        ${buildReceiptCopy(item, cli, 'VIA DO CLIENTE')}
-                        ${buildReceiptCopy(item, cli, 'VIA DO ESCRITÓRIO')}
+                        ${buildReceiptCopy(item, cli, 'VIA DO CLIENTE', pix)}
+                        ${buildReceiptCopy(item, cli, 'VIA DO ESCRITÓRIO', pix)}
                     </div>
                 </article>
             `;
@@ -2126,7 +2387,9 @@
                 const fileName = `${item.status === 'Pago' ? 'recibo' : 'mensalidade'}-${safeFileName(cli.name)}-${item.month}-${item.year}.png`;
                 const file = new File([blob], fileName, { type: 'image/png' });
                 const amount = item.status === 'Pago' && item.paidValue > 0 ? item.paidValue : item.previsto;
-                const message = `Olá, ${cli.name}! Segue ${item.status === 'Pago' ? 'o recibo' : 'a mensalidade'} da Afisco Contabilidade referente a ${mesesNomes[item.month]} de ${item.year}, no valor de ${formatCurrencyVisible(amount)}, com vencimento em ${formatDate(item.due)}. PIX: ${PIX_KEY_DISPLAY}.`;
+                const pix = getClientPaymentPix(cli);
+                const pixMessage = pix.key ? ` PIX: ${pix.key}${pix.recipient ? `, em nome de ${pix.recipient}` : ''}.` : '';
+                const message = `Olá, ${cli.name}! Segue ${item.status === 'Pago' ? 'o recibo' : 'a mensalidade'} da Afisco Contabilidade referente a ${mesesNomes[item.month]} de ${item.year}, no valor de ${formatCurrencyVisible(amount)}, com vencimento em ${formatDate(item.due)}.${pixMessage}`;
 
                 if (navigator.share && navigator.canShare?.({ files: [file] })) {
                     await navigator.share({ files: [file], title: 'Afisco Contabilidade', text: message });

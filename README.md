@@ -14,9 +14,14 @@ Esta versão usa o Neon como fonte de verdade. Cadastros e pagamentos só aparec
 - mensalidade/recibo imprimível ao clicar no cliente, preenchido automaticamente com os dados do Neon;
 - vencimento calculado sempre no mês seguinte ao mês de referência, respeitando o dia cadastrado do cliente;
 - mensalidade/recibo dividido em duas partes: via do cliente e via do escritório;
-- chave PIX `77 9 9145-8383` e QR Code da Caixa dentro das duas vias;
+- PIX definido pelo responsável do cliente: Hélio usa `77 9 9145-8383` com QR da Caixa; Harrisson usa `77 9 9148-3477` com QR próprio; Márcia/Marcinha usa `77 9 9206-3910` e Nando usa `77 8813-7181`, ambos somente com a chave por enquanto;
+- o nome completo do titular aparece abaixo de cada chave PIX para o cliente conferir antes de pagar;
+- o QR Code aparece somente na via do cliente; a via do escritório recebe apenas a chave correspondente;
 - seleção de várias mensalidades para impressão em lote, com até três recibos completos por folha A4;
 - envio da via do cliente pelo WhatsApp como imagem; em aparelhos compatíveis a imagem já segue anexada, e nos demais ela é baixada para anexar na conversa aberta;
+- nova aba **Gastos do Escritório**, com data, descrição, categoria, forma de pagamento, observação e valor salvos no Neon;
+- todos os usuários visualizam os gastos; funcionários alteram somente os próprios lançamentos e Hélio pode administrar todos;
+- filtros mensais, busca, totais e média dos gastos do período;
 - novo logo da Afisco no sistema e no documento de impressão;
 - login individual com sessão segura, senha armazenada por hash e permanência ao atualizar a página;
 - encerramento automático somente após 30 minutos sem atividade ou quando a pessoa clicar em **Sair**;
@@ -45,7 +50,7 @@ Esta versão usa o Neon como fonte de verdade. Cadastros e pagamentos só aparec
 
 No primeiro acesso, o sistema cria Hélio como administrador. Depois, Hélio usa a aba **Funcionários** para cadastrar Harrisson e Nando. Em **Responsável pelos clientes**, use exatamente `Harrisson` ou `Nando`, conforme estiver escrito nos cadastros dos clientes.
 
-As tabelas `clientes`, `mensalidades`, `usuarios`, `sessoes` e `auditoria` são criadas ou atualizadas automaticamente caso ainda não existam. A aplicação não inclui dados de demonstração, para não misturá-los com os dados reais do escritório.
+As tabelas `clientes`, `mensalidades`, `gastos`, `usuarios`, `sessoes` e `auditoria` são criadas ou atualizadas automaticamente caso ainda não existam. A aplicação não inclui dados de demonstração, para não misturá-los com os dados reais do escritório.
 
 O WhatsApp nunca dispara mensagens sozinho. Na cobrança simples ele abre a conversa com a mensagem pronta. No botão de envio do recibo, aparelhos compatíveis abrem o compartilhamento com a imagem anexada; nos demais, o sistema baixa a imagem e abre a conversa para o funcionário anexar e revisar antes de enviar.
 

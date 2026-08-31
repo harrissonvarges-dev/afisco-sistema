@@ -75,6 +75,20 @@ function ensureSchema() {
                 `);
                 await db.query('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS responsible_name TEXT');
                 await db.query(`
+                    CREATE TABLE IF NOT EXISTS gastos (
+                        id BIGSERIAL PRIMARY KEY,
+                        user_id BIGINT NOT NULL REFERENCES usuarios(id) ON DELETE RESTRICT,
+                        description TEXT NOT NULL,
+                        category TEXT NOT NULL DEFAULT 'Outros',
+                        amount NUMERIC(12, 2) NOT NULL CHECK (amount > 0),
+                        expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
+                        payment_method TEXT NOT NULL DEFAULT '',
+                        notes TEXT NOT NULL DEFAULT '',
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                `);
+                await db.query(`
                     CREATE TABLE IF NOT EXISTS sessoes (
                         id BIGSERIAL PRIMARY KEY,
                         token_hash CHAR(64) NOT NULL UNIQUE,
@@ -99,6 +113,8 @@ function ensureSchema() {
                 await db.query('CREATE INDEX IF NOT EXISTS mensalidades_cliente_idx ON mensalidades (client_id)');
                 await db.query('CREATE INDEX IF NOT EXISTS sessoes_expiracao_idx ON sessoes (expires_at)');
                 await db.query('CREATE INDEX IF NOT EXISTS auditoria_data_idx ON auditoria (created_at DESC)');
+                await db.query('CREATE INDEX IF NOT EXISTS gastos_data_idx ON gastos (expense_date DESC)');
+                await db.query('CREATE INDEX IF NOT EXISTS gastos_usuario_idx ON gastos (user_id)');
                 await db.query('COMMIT');
             } catch (error) {
                 await db.query('ROLLBACK');
@@ -152,7 +168,7 @@ async function ensurePeriod(month, year) {
                )`,
             [month, year]
         );
-        // Corrige também mensalidades abertas que já existiam com vencimento no próprio mês de referência.
+        // Corrige mensalidades antigas, inclusive as já pagas, sem apagar o pagamento registrado.
         await db.query(
             `UPDATE mensalidades m
              SET due_date = (make_date(m.year, m.month, 1)
@@ -162,6 +178,7 @@ async function ensurePeriod(month, year) {
                                        EXTRACT(DAY FROM (make_date(m.year, m.month, 1) + INTERVAL '2 month - 1 day'))::INTEGER
                                    ) - 1) * INTERVAL '1 day')::date,
                  status = CASE
+                     WHEN m.status = 'Pago' THEN 'Pago'
                      WHEN COALESCE(m.paid_value, 0) > 0 THEN 'Parcial'
                      WHEN (make_date(m.year, m.month, 1)
                               + INTERVAL '1 month'
@@ -174,8 +191,7 @@ async function ensurePeriod(month, year) {
              FROM clientes c
              WHERE c.id = m.client_id
                AND m.month = $1
-               AND m.year = $2
-               AND m.status <> 'Pago'`,
+               AND m.year = $2`,
             [month, year]
         );
         await db.query('COMMIT');
