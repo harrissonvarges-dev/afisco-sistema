@@ -126,19 +126,21 @@ async function ensurePeriod(month, year) {
                     $1,
                     $2,
                     c.value,
-                    make_date(
-                        $2,
-                        $1,
-                        LEAST(c.due_day, EXTRACT(DAY FROM (make_date($2, $1, 1) + INTERVAL '1 month - 1 day'))::INTEGER)
-                    ),
+                     (make_date($2, $1, 1)
+                         + INTERVAL '1 month'
+                         + (LEAST(
+                                c.due_day,
+                                EXTRACT(DAY FROM (make_date($2, $1, 1) + INTERVAL '2 month - 1 day'))::INTEGER
+                            ) - 1) * INTERVAL '1 day')::date,
                     NULL,
                     0,
                     CASE
-                        WHEN make_date(
-                            $2,
-                            $1,
-                            LEAST(c.due_day, EXTRACT(DAY FROM (make_date($2, $1, 1) + INTERVAL '1 month - 1 day'))::INTEGER)
-                        ) < CURRENT_DATE THEN 'Vencido'
+                        WHEN (make_date($2, $1, 1)
+                            + INTERVAL '1 month'
+                            + (LEAST(
+                                   c.due_day,
+                                   EXTRACT(DAY FROM (make_date($2, $1, 1) + INTERVAL '2 month - 1 day'))::INTEGER
+                               ) - 1) * INTERVAL '1 day')::date < CURRENT_DATE THEN 'Vencido'
                         ELSE 'Em aberto'
                     END
              FROM clientes c
@@ -148,6 +150,32 @@ async function ensurePeriod(month, year) {
                    SELECT 1 FROM mensalidades m
                    WHERE m.client_id = c.id AND m.month = $1 AND m.year = $2
                )`,
+            [month, year]
+        );
+        // Corrige também mensalidades abertas que já existiam com vencimento no próprio mês de referência.
+        await db.query(
+            `UPDATE mensalidades m
+             SET due_date = (make_date(m.year, m.month, 1)
+                                + INTERVAL '1 month'
+                                + (LEAST(
+                                       c.due_day,
+                                       EXTRACT(DAY FROM (make_date(m.year, m.month, 1) + INTERVAL '2 month - 1 day'))::INTEGER
+                                   ) - 1) * INTERVAL '1 day')::date,
+                 status = CASE
+                     WHEN COALESCE(m.paid_value, 0) > 0 THEN 'Parcial'
+                     WHEN (make_date(m.year, m.month, 1)
+                              + INTERVAL '1 month'
+                              + (LEAST(
+                                     c.due_day,
+                                     EXTRACT(DAY FROM (make_date(m.year, m.month, 1) + INTERVAL '2 month - 1 day'))::INTEGER
+                                 ) - 1) * INTERVAL '1 day')::date < CURRENT_DATE THEN 'Vencido'
+                     ELSE 'Em aberto'
+                 END
+             FROM clientes c
+             WHERE c.id = m.client_id
+               AND m.month = $1
+               AND m.year = $2
+               AND m.status <> 'Pago'`,
             [month, year]
         );
         await db.query('COMMIT');

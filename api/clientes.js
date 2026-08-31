@@ -14,13 +14,18 @@ function samePerson(left, right) {
 
 function mapClienteForUser(row, user, isAdmin) {
     const cliente = mapCliente(row);
+    const isOwner = samePerson(row.responsible, user.responsibleName);
+    const isCollector = samePerson(row.collector, user.responsibleName);
     const canViewFinancials = isAdmin
-        || samePerson(row.responsible, user.responsibleName)
-        || samePerson(row.collector, user.responsibleName);
+        || isOwner
+        || isCollector;
     return {
         ...cliente,
+        responsible: isAdmin ? cliente.responsible : '',
+        collector: isAdmin ? cliente.collector : '',
         value: canViewFinancials ? cliente.value : null,
-        canViewFinancials
+        canViewFinancials,
+        canManage: isAdmin || isOwner
     };
 }
 
@@ -81,11 +86,12 @@ module.exports = async function handler(req, res) {
                                 EXTRACT(MONTH FROM CURRENT_DATE)::INTEGER,
                                 EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER,
                                 $2,
-                                make_date(
-                                    EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER,
-                                    EXTRACT(MONTH FROM CURRENT_DATE)::INTEGER,
-                                    LEAST($3, EXTRACT(DAY FROM (date_trunc('month', CURRENT_DATE) + INTERVAL '1 month - 1 day'))::INTEGER)
-                                ),
+                                (date_trunc('month', CURRENT_DATE)
+                                    + INTERVAL '1 month'
+                                    + (LEAST(
+                                           $3,
+                                           EXTRACT(DAY FROM (date_trunc('month', CURRENT_DATE) + INTERVAL '2 month - 1 day'))::INTEGER
+                                       ) - 1) * INTERVAL '1 day')::date,
                                 NULL,
                                 0,
                                 'Em aberto'
@@ -106,7 +112,7 @@ module.exports = async function handler(req, res) {
                     value: Number(created.value || 0)
                 });
                 await db.query('COMMIT');
-                return res.status(201).json(mapCliente(created));
+                return res.status(201).json(mapClienteForUser(created, user, isAdmin));
             } catch (error) {
                 await db.query('ROLLBACK');
                 throw error;
@@ -175,7 +181,7 @@ module.exports = async function handler(req, res) {
                     after: newClient
                 });
                 await db.query('COMMIT');
-                return res.status(200).json(newClient);
+                return res.status(200).json(mapClienteForUser(updated, user, isAdmin));
             } catch (error) {
                 await db.query('ROLLBACK');
                 throw error;
