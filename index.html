@@ -2233,7 +2233,6 @@
                                 <div><span class="block uppercase text-slate-400">Referência</span><strong>${mesesNomes[item.month]} / ${item.year}</strong></div>
                                 <div><span class="block uppercase text-slate-400">Vencimento</span><strong>${formatDate(item.due)}</strong></div>
                                 <div><span class="block uppercase text-slate-400">${isPaid ? 'Valor recebido' : 'Valor'}</span><strong class="text-sm text-afisco-blue">${formatCurrencyVisible(displayValue)}</strong></div>
-                                <div><span class="block uppercase text-slate-400">Status</span><span class="inline-flex rounded-full px-1.5 py-0.5 font-bold ${receiptStatusClass(item.status)}">${escapeHtml(item.status)}</span></div>
                                 ${item.paidDate ? `<div><span class="block uppercase text-slate-400">Pago em</span><strong>${formatDate(item.paidDate)}</strong></div>` : ''}
                             </div>
 
