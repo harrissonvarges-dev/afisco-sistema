@@ -158,6 +158,8 @@
         .pix-qr-crop img { position: absolute; max-width: none; }
         .pix-qr-caixa img { width: 166px; left: -36px; top: -74px; }
         .pix-qr-harrisson img { width: 134px; left: -19px; top: -69px; }
+        .pix-qr-nando img { width: 96px; left: 0; top: 0; }
+        .pix-qr-marcia img { width: 267px; left: -86px; top: -89px; }
         @media (max-width: 760px) {
             .receipt-copies { grid-template-columns: 1fr; }
             .receipt-copy + .receipt-copy { border-left: 0; border-top: 2px dashed #94a3b8; }
@@ -2185,14 +2187,20 @@
             return {
                 key: String(pix.key || ''),
                 recipient: String(pix.recipient || ''),
-                qr: ['pix-qrcode-caixa.jpeg', 'pix-qrcode-harrisson.jpeg'].includes(pix.qr) ? pix.qr : '',
+                qr: ['pix-qrcode-caixa.jpeg', 'pix-qrcode-harrisson.jpeg', 'pix-qrcode-nando.jpeg', 'pix-qrcode-marcia.png'].includes(pix.qr) ? pix.qr : '',
                 label: String(pix.label || 'PIX')
             };
         }
 
         function buildPixQrHtml(pix) {
             if (!pix.qr) return '';
-            const variantClass = pix.qr === 'pix-qrcode-harrisson.jpeg' ? 'pix-qr-harrisson' : 'pix-qr-caixa';
+            const variantClass = pix.qr === 'pix-qrcode-harrisson.jpeg'
+                ? 'pix-qr-harrisson'
+                : pix.qr === 'pix-qrcode-nando.jpeg'
+                    ? 'pix-qr-nando'
+                    : pix.qr === 'pix-qrcode-marcia.png'
+                        ? 'pix-qr-marcia'
+                    : 'pix-qr-caixa';
             return `
                 <div class="pix-qr-crop ${variantClass} shrink-0 rounded-md border border-slate-200" aria-label="QR Code PIX">
                     <img src="${pix.qr}" alt="QR Code PIX da mensalidade">

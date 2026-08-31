@@ -25,10 +25,10 @@ function paymentPixForResponsible(responsible) {
         return { key: '77 9 9148-3477', recipient: 'Harrisson Bahia Varges', qr: 'pix-qrcode-harrisson.jpeg', label: 'PIX HARRISSON' };
     }
     if (name === 'marcia' || name === 'marcinha') {
-        return { key: '77 9 9206-3910', recipient: 'Marcia Luiz Bahia Varges', qr: '', label: 'PIX MÁRCIA' };
+        return { key: '77 9 9206-3910', recipient: 'Marcia Luiz Bahia Varges', qr: 'pix-qrcode-marcia.png', label: 'PIX MÁRCIA' };
     }
     if (name === 'nando') {
-        return { key: '77 8813-7181', recipient: 'Eronaldo Gomes Varges', qr: '', label: 'PIX NANDO' };
+        return { key: '77 8813-7181', recipient: 'Eronaldo Gomes Varges', qr: 'pix-qrcode-nando.jpeg', label: 'PIX NANDO' };
     }
     return { key: '', recipient: '', qr: '', label: '' };
 }
