@@ -12,6 +12,25 @@ function samePerson(left, right) {
     return Boolean(expected) && String(left || '').trim().toLowerCase() === expected;
 }
 
+function normalizePersonName(value) {
+    return String(value || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+}
+
+function allowedResponsibleName(value) {
+    const names = {
+        helio: 'Helio',
+        harrisson: 'Harrisson',
+        nando: 'Nando',
+        marcia: 'Marcia',
+        marcinha: 'Marcia'
+    };
+    return names[normalizePersonName(value)] || '';
+}
+
 function paymentPixForResponsible(responsible) {
     const name = String(responsible || '')
         .trim()
@@ -37,17 +56,18 @@ function mapClienteForUser(row, user, isAdmin) {
     const cliente = mapCliente(row);
     const isOwner = samePerson(row.responsible, user.responsibleName);
     const isCollector = samePerson(row.collector, user.responsibleName);
-    const canViewFinancials = isAdmin
+    const canOperate = isAdmin
         || isOwner
         || isCollector;
-    const paymentPix = canViewFinancials ? paymentPixForResponsible(row.responsible) : { key: '', recipient: '', qr: '', label: '' };
+    const paymentPix = canOperate ? paymentPixForResponsible(row.responsible) : { key: '', recipient: '', qr: '', label: '' };
     return {
         ...cliente,
         responsible: isAdmin ? cliente.responsible : '',
         collector: isAdmin ? cliente.collector : '',
-        value: canViewFinancials ? cliente.value : null,
+        value: cliente.value,
         paymentPix,
-        canViewFinancials,
+        canViewFinancials: true,
+        canOperate,
         canManage: isAdmin || isOwner
     };
 }
@@ -82,8 +102,12 @@ module.exports = async function handler(req, res) {
         if (req.method === 'POST') {
             const cliente = normalizeCliente(parseBody(req));
             if (!isAdmin) {
-                cliente.responsible = user.responsibleName;
-                cliente.collector = '';
+                const selectedResponsible = allowedResponsibleName(cliente.responsible);
+                if (!selectedResponsible) {
+                    return res.status(400).json({ error: 'Escolha quem receberá a mensalidade.' });
+                }
+                cliente.responsible = selectedResponsible;
+                cliente.collector = user.responsibleName;
             }
             if (!cliente.name) {
                 return res.status(400).json({ error: 'Informe o nome do cliente.' });

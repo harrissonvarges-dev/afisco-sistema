@@ -15,14 +15,15 @@ function samePerson(left, right) {
 
 function mapMensalidadeForUser(row, user, isAdmin) {
     const mensalidade = mapMensalidade(row);
-    const canViewFinancials = isAdmin
+    const canOperate = isAdmin
         || samePerson(row.client_responsible, user.responsibleName)
         || samePerson(row.client_collector, user.responsibleName);
     return {
         ...mensalidade,
-        previsto: canViewFinancials ? mensalidade.previsto : null,
-        paidValue: canViewFinancials ? mensalidade.paidValue : null,
-        canViewFinancials
+        previsto: mensalidade.previsto,
+        paidValue: mensalidade.paidValue,
+        canViewFinancials: true,
+        canOperate
     };
 }
 
