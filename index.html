@@ -2594,14 +2594,21 @@
                 const pixMessage = pix.key ? ` PIX: ${pix.key}${pix.recipient ? `, em nome de ${pix.recipient}` : ''}.` : '';
                 const message = `Olá, ${cli.name}! Segue ${item.status === 'Pago' ? 'o recibo' : 'o documento de honorários contábeis'} da Afisco Contabilidade referente a ${mesesNomes[item.month]} de ${item.year}, no valor de ${formatCurrencyVisible(amount)}, com vencimento em ${formatDate(item.due)}.${pixMessage}`;
 
-                const downloadUrl = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = downloadUrl;
-                link.download = fileName;
-                link.click();
-                setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
-                openWhatsAppWeb(phone, message);
-                showToast('A imagem foi baixada. Anexe-a na conversa aberta no WhatsApp Web.');
+                try {
+                    if (!navigator.clipboard?.write || typeof ClipboardItem !== 'function') throw new Error('Clipboard indisponível');
+                    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                    openWhatsAppWeb(phone, message);
+                    showToast('Imagem copiada! No WhatsApp Web, pressione Ctrl+V para anexar e depois envie.');
+                } catch (_) {
+                    const downloadUrl = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = downloadUrl;
+                    link.download = fileName;
+                    link.click();
+                    setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+                    openWhatsAppWeb(phone, message);
+                    showToast('O navegador bloqueou a cópia. A imagem foi baixada para você anexar no WhatsApp Web.');
+                }
             } catch (error) {
                 if (error?.name !== 'AbortError') showToast(error.message || 'Não foi possível preparar o recibo.', 'error');
             } finally {
