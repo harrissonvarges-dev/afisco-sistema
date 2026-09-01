@@ -645,8 +645,17 @@
                     <h2 class="text-xl font-bold text-afisco-blue flex items-center gap-2">
                         <i class="fa-solid fa-chart-line text-afisco-red"></i> Análise Mensal e Evolução
                     </h2>
-                    <p class="text-xs text-afisco-textMuted mt-1">Compare o desempenho financeiro de todos os meses do ano.</p>
+                    <p class="text-xs text-afisco-textMuted mt-1">Compare os meses de recebimento; cada mês considera a competência do mês anterior.</p>
                 </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
+                <div class="rounded-2xl border border-afisco-border bg-white p-5 shadow-sm"><div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Recebido no ano</div><div id="analiseTotalRecebido" class="mt-2 text-xl font-black text-emerald-600">R$ 0,00</div></div>
+                <div class="rounded-2xl border border-afisco-border bg-white p-5 shadow-sm"><div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Média mensal</div><div id="analiseMediaRecebida" class="mt-2 text-xl font-black text-afisco-blue">R$ 0,00</div></div>
+                <div class="rounded-2xl border border-afisco-border bg-white p-5 shadow-sm"><div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Taxa média recebida</div><div id="analiseTaxaMedia" class="mt-2 text-xl font-black text-blue-600">0%</div></div>
+                <div class="rounded-2xl border border-afisco-border bg-white p-5 shadow-sm"><div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Melhor mês</div><div id="analiseMelhorMes" class="mt-2 text-lg font-black text-emerald-700">-</div></div>
+                <div class="rounded-2xl border border-afisco-border bg-white p-5 shadow-sm"><div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Variação mensal</div><div id="analiseVariacaoMensal" class="mt-2 text-xl font-black text-slate-700">0%</div></div>
+                <div class="rounded-2xl border border-afisco-border bg-white p-5 shadow-sm"><div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Saldo acumulado</div><div id="analiseSaldoAcumulado" class="mt-2 text-xl font-black text-afisco-red">R$ 0,00</div></div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -665,6 +674,17 @@
                     <div class="relative h-72 w-full">
                         <canvas id="analiseInadChart"></canvas>
                     </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-afisco-border">
+                    <h3 class="font-bold text-afisco-blue text-sm mb-4 flex items-center gap-2"><i class="fa-solid fa-chart-column text-emerald-600"></i> Recebimentos mensais comparados à média</h3>
+                    <div class="relative h-72 w-full"><canvas id="analiseRecebimentosChart"></canvas></div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-afisco-border">
+                    <h3 class="font-bold text-afisco-blue text-sm mb-4 flex items-center gap-2"><i class="fa-solid fa-arrow-right-arrow-left text-amber-600"></i> Variação do recebido contra o mês anterior (%)</h3>
+                    <div class="relative h-72 w-full"><canvas id="analiseVariacaoChart"></canvas></div>
                 </div>
             </div>
 
@@ -1025,6 +1045,8 @@
         let dashDoughnutChartObj = null;
         let analiseLineChartObj = null;
         let analiseInadChartObj = null;
+        let analiseRecebimentosChartObj = null;
+        let analiseVariacaoChartObj = null;
 
         const sessionActivityEvents = ['pointerdown', 'keydown', 'scroll', 'touchstart'];
 
@@ -2835,7 +2857,7 @@
 
         // ================= ANÁLISE MENSAL LOGIC =================
         function renderAnaliseTab() {
-            const { year } = getSelectedPeriod();
+            const { month: selectedMonth, year } = getSelectedPeriod();
             document.getElementById('lblAnoAnalise').innerText = year;
 
             const mesesArr = [1,2,3,4,5,6,7,8,9,10,11,12];
@@ -2878,6 +2900,34 @@
                 tbody.appendChild(tr);
             });
 
+            const currentYear = new Date().getFullYear();
+            const cutoffMonth = year < currentYear ? 12 : year === currentYear ? selectedMonth : 0;
+            const activeIndexes = mesesArr.map((_, index) => index).filter(index => index < cutoffMonth && prevArr[index] > 0);
+            const totalPrevisto = activeIndexes.reduce((sum, index) => sum + prevArr[index], 0);
+            const totalRecebido = activeIndexes.reduce((sum, index) => sum + recArr[index], 0);
+            const mediaRecebida = activeIndexes.length ? totalRecebido / activeIndexes.length : 0;
+            const taxaMedia = totalPrevisto > 0 ? (totalRecebido / totalPrevisto) * 100 : 0;
+            const bestIndex = activeIndexes.length
+                ? activeIndexes.reduce((best, index) => recArr[index] > recArr[best] ? index : best, activeIndexes[0])
+                : -1;
+            const latestIndex = activeIndexes.at(-1) ?? -1;
+            const previousIndex = activeIndexes.length > 1 ? activeIndexes.at(-2) : -1;
+            const latestVariation = latestIndex >= 0 && previousIndex >= 0 && recArr[previousIndex] > 0
+                ? ((recArr[latestIndex] - recArr[previousIndex]) / recArr[previousIndex]) * 100
+                : 0;
+            const saldoAcumulado = totalRecebido - totalPrevisto;
+
+            document.getElementById('analiseTotalRecebido').innerText = formatCurrency(totalRecebido);
+            document.getElementById('analiseMediaRecebida').innerText = formatCurrency(mediaRecebida);
+            document.getElementById('analiseTaxaMedia').innerText = formatPercentage(taxaMedia);
+            document.getElementById('analiseMelhorMes').innerText = bestIndex >= 0 ? `${mesesNomes[bestIndex + 1]} · ${formatCurrency(recArr[bestIndex])}` : '-';
+            const variationElement = document.getElementById('analiseVariacaoMensal');
+            variationElement.innerText = `${latestVariation >= 0 ? '+' : ''}${formatPercentage(latestVariation)}`;
+            variationElement.className = `mt-2 text-xl font-black ${latestVariation >= 0 ? 'text-emerald-600' : 'text-afisco-red'}`;
+            const balanceElement = document.getElementById('analiseSaldoAcumulado');
+            balanceElement.innerText = formatCurrency(saldoAcumulado);
+            balanceElement.className = `mt-2 text-xl font-black ${saldoAcumulado >= 0 ? 'text-emerald-600' : 'text-afisco-red'}`;
+
             const ctxLine = document.getElementById('analiseLineChart').getContext('2d');
             if(analiseLineChartObj) analiseLineChartObj.destroy();
             analiseLineChartObj = new Chart(ctxLine, {
@@ -2901,6 +2951,41 @@
                     datasets: [{ label: '% Inadimplência', data: valuesHidden ? inadPctArr.map(() => 0) : inadPctArr, borderColor: '#e11d48', backgroundColor: '#e11d48', tension: 0.2, fill: true }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            });
+
+            const averageLine = mesesArr.map((_, index) => index < cutoffMonth && prevArr[index] > 0 ? mediaRecebida : null);
+            const visibleReceipts = recArr.map((value, index) => index < cutoffMonth ? value : null);
+            const ctxReceipts = document.getElementById('analiseRecebimentosChart').getContext('2d');
+            if (analiseRecebimentosChartObj) analiseRecebimentosChartObj.destroy();
+            analiseRecebimentosChartObj = new Chart(ctxReceipts, {
+                data: {
+                    labels: mesesNomes.slice(1),
+                    datasets: [
+                        { type: 'bar', label: 'Recebido', data: valuesHidden ? visibleReceipts.map(value => value === null ? null : 0) : visibleReceipts, backgroundColor: '#10b981', borderRadius: 6 },
+                        { type: 'line', label: 'Média mensal', data: valuesHidden ? averageLine.map(value => value === null ? null : 0) : averageLine, borderColor: '#1d4ed8', borderDash: [6, 4], pointRadius: 0, tension: 0 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            });
+
+            const monthlyVariation = recArr.map((value, index) => {
+                if (index === 0 || index >= cutoffMonth || recArr[index - 1] <= 0) return null;
+                return ((value - recArr[index - 1]) / recArr[index - 1]) * 100;
+            });
+            const ctxVariation = document.getElementById('analiseVariacaoChart').getContext('2d');
+            if (analiseVariacaoChartObj) analiseVariacaoChartObj.destroy();
+            analiseVariacaoChartObj = new Chart(ctxVariation, {
+                type: 'bar',
+                data: {
+                    labels: mesesNomes.slice(1),
+                    datasets: [{
+                        label: 'Variação (%)',
+                        data: valuesHidden ? monthlyVariation.map(value => value === null ? null : 0) : monthlyVariation,
+                        backgroundColor: monthlyVariation.map(value => value === null ? '#cbd5e1' : value >= 0 ? '#10b981' : '#e11d48'),
+                        borderRadius: 6
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: false } } }
             });
         }
 
