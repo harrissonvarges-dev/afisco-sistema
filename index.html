@@ -61,6 +61,7 @@
         let sessionCheckTimer = null;
         let selectedMensalidadeIds = new Set();
         let activeReceiptIds = [];
+        let whatsappMensalidadeQueue = [];
         try {
             valuesHidden = localStorage.getItem('afisco_values_hidden') === 'true';
         } catch (_) {
@@ -514,7 +515,7 @@
                 </div>
             </div>
 
-            <div class="bg-white p-4 rounded-2xl shadow-sm border border-afisco-border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-center">
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-afisco-border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-center">
                 <div class="relative">
                     <input type="text" id="billingSearchInput" onkeyup="renderMensalidadesTable()" placeholder="Filtrar por nome do cliente..." class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
                 </div>
@@ -544,6 +545,20 @@
                         <option value="Parcial">Parcial</option>
                     </select>
                 </div>
+                <div>
+                    <select id="billingResponsibleFilter" onchange="renderMensalidadesTable()" class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium px-3 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                        <option value="todos">Todos os responsáveis</option>
+                    </select>
+                </div>
+                <div>
+                    <select id="billingValueFilter" onchange="renderMensalidadesTable()" class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium px-3 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                        <option value="todos">Todos os valores</option>
+                        <option value="ate-200">Até R$ 200</option>
+                        <option value="200-500">R$ 200 a R$ 500</option>
+                        <option value="500-1000">R$ 500 a R$ 1.000</option>
+                        <option value="acima-1000">Acima de R$ 1.000</option>
+                    </select>
+                </div>
                 <div class="flex justify-end">
                     <span class="text-xs text-slate-500 font-medium self-center" id="billingCountLabel">Mostrando 0 mensalidades</span>
                 </div>
@@ -556,9 +571,14 @@
                     </button>
                     <span id="selectedMensalidadesCount" class="text-xs font-semibold text-slate-600">0 selecionadas</span>
                 </div>
-                <button id="printSelectedButton" onclick="printSelectedReceipts()" disabled class="rounded-xl bg-afisco-blue px-4 py-2.5 text-xs font-bold text-white shadow transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-40">
-                    <i class="fa-solid fa-print mr-1"></i> Imprimir selecionadas
-                </button>
+                <div class="flex flex-wrap justify-end gap-2">
+                    <button id="whatsappSelectedButton" onclick="sendNextSelectedWhatsApp()" disabled class="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">
+                        <i class="fa-brands fa-whatsapp mr-1"></i> Enviar selecionadas
+                    </button>
+                    <button id="printSelectedButton" onclick="printSelectedReceipts()" disabled class="rounded-xl bg-afisco-blue px-4 py-2.5 text-xs font-bold text-white shadow transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-40">
+                        <i class="fa-solid fa-print mr-1"></i> Imprimir selecionadas
+                    </button>
+                </div>
             </div>
 
             <div class="bg-white rounded-2xl shadow-sm border border-afisco-border overflow-hidden">
@@ -2104,10 +2124,33 @@
         }
 
         // ================= MENSALIDADES LOGIC =================
+        function syncBillingResponsibleFilter() {
+            const select = document.getElementById('billingResponsibleFilter');
+            if (!select) return;
+            const currentValue = select.value || 'todos';
+            const responsaveis = [...new Set(clientesData.map(c => String(c.responsible || '').trim()).filter(Boolean))]
+                .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+            select.innerHTML = '<option value="todos">Todos os responsáveis</option>'
+                + responsaveis.map(nome => `<option value="${escapeHtml(nome)}">${escapeHtml(nome)}</option>`).join('');
+            select.value = responsaveis.includes(currentValue) ? currentValue : 'todos';
+        }
+
+        function matchesBillingValue(value, filter) {
+            const amount = Number(value) || 0;
+            if (filter === 'ate-200') return amount <= 200;
+            if (filter === '200-500') return amount > 200 && amount <= 500;
+            if (filter === '500-1000') return amount > 500 && amount <= 1000;
+            if (filter === 'acima-1000') return amount > 1000;
+            return true;
+        }
+
         function renderMensalidadesTable() {
+            syncBillingResponsibleFilter();
             const { month, year } = getSelectedPeriod();
             const search = document.getElementById('billingSearchInput').value.toLowerCase();
             const statusFilter = document.getElementById('billingStatusFilter').value;
+            const responsibleFilter = document.getElementById('billingResponsibleFilter').value;
+            const valueFilter = document.getElementById('billingValueFilter').value;
             const tbody = document.getElementById('mensalidadesTableBody');
             tbody.innerHTML = '';
 
@@ -2118,7 +2161,9 @@
                 if(!cli) return false;
                 const matchName = cli.name.toLowerCase().includes(search);
                 const matchStatus = statusFilter === 'todos' || item.status === statusFilter;
-                return matchName && matchStatus;
+                const matchResponsible = responsibleFilter === 'todos' || cli.responsible === responsibleFilter;
+                const matchValue = matchesBillingValue(item.previsto, valueFilter);
+                return matchName && matchStatus && matchResponsible && matchValue;
             });
 
             document.getElementById('billingCountLabel').innerText = `Mostrando ${filtered.length} mensalidades`;
@@ -2181,6 +2226,8 @@
             const { month, year } = getSelectedPeriod();
             const search = document.getElementById('billingSearchInput').value.toLowerCase();
             const statusFilter = document.getElementById('billingStatusFilter').value;
+            const responsibleFilter = document.getElementById('billingResponsibleFilter').value;
+            const valueFilter = document.getElementById('billingValueFilter').value;
             return mensalidadesData.filter(item => {
                 const cli = clientesData.find(c => c.id === item.clientId);
                 return cli
@@ -2188,6 +2235,8 @@
                     && item.year === year
                     && cli.name.toLowerCase().includes(search)
                     && (statusFilter === 'todos' || item.status === statusFilter)
+                    && (responsibleFilter === 'todos' || cli.responsible === responsibleFilter)
+                    && matchesBillingValue(item.previsto, valueFilter)
                     && canOperateMensalidade(item);
             });
         }
@@ -2195,10 +2244,12 @@
         function toggleMensalidadeSelection(id, checked) {
             if (checked) selectedMensalidadeIds.add(id);
             else selectedMensalidadeIds.delete(id);
+            whatsappMensalidadeQueue = [];
             updateBatchSelectionControls();
         }
 
         function toggleAllVisibleMensalidades() {
+            whatsappMensalidadeQueue = [];
             const visible = getVisibleMensalidadesForSelection();
             if (!visible.length) {
                 showToast('Não há mensalidades disponíveis para selecionar.', 'error');
@@ -2219,8 +2270,41 @@
             const count = selectedMensalidadeIds.size;
             const countLabel = document.getElementById('selectedMensalidadesCount');
             const printButton = document.getElementById('printSelectedButton');
+            const whatsappButton = document.getElementById('whatsappSelectedButton');
             if (countLabel) countLabel.innerText = `${count} ${count === 1 ? 'selecionada' : 'selecionadas'}`;
             if (printButton) printButton.disabled = count === 0;
+            if (whatsappButton) {
+                whatsappButton.disabled = count === 0;
+                const remaining = whatsappMensalidadeQueue.length;
+                whatsappButton.innerHTML = remaining
+                    ? `<i class="fa-brands fa-whatsapp mr-1"></i> Abrir próxima (${remaining})`
+                    : '<i class="fa-brands fa-whatsapp mr-1"></i> Enviar selecionadas';
+            }
+        }
+
+        async function sendNextSelectedWhatsApp() {
+            if (!whatsappMensalidadeQueue.length) {
+                whatsappMensalidadeQueue = mensalidadesData
+                    .filter(item => selectedMensalidadeIds.has(item.id) && canOperateMensalidade(item))
+                    .sort((a, b) => a.id - b.id)
+                    .map(item => item.id);
+            }
+            const id = whatsappMensalidadeQueue.shift();
+            if (!id) {
+                showToast('Selecione ao menos uma mensalidade.', 'error');
+                return;
+            }
+            const item = mensalidadesData.find(m => m.id === id);
+            if (item) await shareReceiptWhatsApp(item.id);
+            selectedMensalidadeIds.delete(id);
+            if (!whatsappMensalidadeQueue.length) showToast('Todas as conversas selecionadas foram preparadas.');
+            else showToast(`Conversa aberta. Restam ${whatsappMensalidadeQueue.length} na fila.`);
+            updateBatchSelectionControls();
+        }
+
+        function openWhatsAppWeb(phone, message) {
+            const url = `https://web.whatsapp.com/send?phone=${encodeURIComponent(phone)}&text=${encodeURIComponent(message)}`;
+            window.open(url, '_blank', 'noopener,noreferrer');
         }
 
         function openWhatsAppForClient(clientId, mensalidadeId = null) {
@@ -2262,7 +2346,7 @@
                 message += ` Entramos em contato sobre sua mensalidade. Quando puder, fale conosco por aqui.`;
             }
             message += `\n\nAtenciosamente, Afisco Contabilidade.`;
-            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+            openWhatsAppWeb(phone, message);
         }
 
         function openReceiptForClient(clientId) {
@@ -2510,20 +2594,14 @@
                 const pixMessage = pix.key ? ` PIX: ${pix.key}${pix.recipient ? `, em nome de ${pix.recipient}` : ''}.` : '';
                 const message = `Olá, ${cli.name}! Segue ${item.status === 'Pago' ? 'o recibo' : 'o documento de honorários contábeis'} da Afisco Contabilidade referente a ${mesesNomes[item.month]} de ${item.year}, no valor de ${formatCurrencyVisible(amount)}, com vencimento em ${formatDate(item.due)}.${pixMessage}`;
 
-                if (navigator.share && navigator.canShare?.({ files: [file] })) {
-                    await navigator.share({ files: [file], title: 'Afisco Contabilidade', text: message });
-                    showToast('Recibo compartilhado com sucesso.');
-                    return;
-                }
-
                 const downloadUrl = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = downloadUrl;
                 link.download = fileName;
                 link.click();
                 setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
-                window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
-                showToast('A imagem foi baixada. Anexe-a na conversa do WhatsApp que foi aberta.');
+                openWhatsAppWeb(phone, message);
+                showToast('A imagem foi baixada. Anexe-a na conversa aberta no WhatsApp Web.');
             } catch (error) {
                 if (error?.name !== 'AbortError') showToast(error.message || 'Não foi possível preparar o recibo.', 'error');
             } finally {
@@ -2597,6 +2675,9 @@
                 closeMensalidadeModal();
                 initApp();
                 showToast('Pagamento salvo no Neon.');
+                if (updated.status === 'Pago' && window.confirm('Pagamento registrado. Deseja preparar o recibo para enviar ao cliente pelo WhatsApp Web?')) {
+                    await shareReceiptWhatsApp(updated.id);
+                }
             } catch (error) {
                 showToast(error.message, 'error');
             } finally {
