@@ -118,12 +118,21 @@ module.exports = async function handler(req, res) {
             const body = parseBody(req);
             const id = Number(body.id);
             const previsto = Number(body.previsto || 0);
-            const paidValue = Number(body.paidValue ?? body.paid_value ?? 0);
+            let paidValue = Number(body.paidValue ?? body.paid_value ?? 0);
             let paidDate = body.paidDate || body.paid_date || null;
             let status = body.status || 'Em aberto';
 
             if (!id) {
                 return res.status(400).json({ error: 'Mensalidade inválida.' });
+            }
+            if (status === 'Em aberto' || status === 'Vencido') {
+                paidValue = 0;
+                paidDate = null;
+            } else if (paidValue >= previsto && previsto > 0) {
+                paidValue = Math.max(paidValue, previsto);
+                status = 'Pago';
+            } else if (paidValue > 0) {
+                status = 'Parcial';
             }
             if (status === 'Pago' && !paidDate) {
                 paidDate = new Date().toISOString().slice(0, 10);

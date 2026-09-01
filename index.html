@@ -965,7 +965,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Status</label>
-                        <select id="modalMensalidadeStatus" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                        <select id="modalMensalidadeStatus" onchange="handleMensalidadeStatusChange()" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
                             <option value="Em aberto">Em aberto</option>
                             <option value="Pago">Pago</option>
                             <option value="Vencido">Vencido</option>
@@ -2681,7 +2681,7 @@
             const cli = clientesData.find(c => c.id === item.clientId);
 
             document.getElementById('modalMensalidadeId').value = item.id;
-            document.getElementById('modalMensalidadeInfo').value = `${cli ? cli.name : 'Cliente'} (${mesesNomes[item.month]}/${item.year})`;
+            document.getElementById('modalMensalidadeInfo').value = `${cli ? cli.name : 'Cliente'} · Referência ${mesesNomes[item.month]}/${item.year} · Vence ${formatDate(item.due)}`;
             document.getElementById('modalMensalidadePrevisto').value = item.previsto;
             document.getElementById('modalMensalidadePrevisto').disabled = cli ? !canManageClient(cli) : true;
             document.getElementById('modalMensalidadePrevisto').title = cli && !canManageClient(cli) ? 'Você pode dar baixa, mas o valor previsto só pode ser alterado pela administração.' : '';
@@ -2690,6 +2690,22 @@
             document.getElementById('modalMensalidadeStatus').value = ['Em aberto', 'Vencido'].includes(item.status) ? 'Pago' : item.status;
 
             document.getElementById('mensalidadeModal').classList.remove('hidden');
+        }
+
+        function handleMensalidadeStatusChange() {
+            const status = document.getElementById('modalMensalidadeStatus').value;
+            const paidInput = document.getElementById('modalMensalidadePago');
+            const paidDateInput = document.getElementById('modalMensalidadeDataPgto');
+            if (status === 'Em aberto' || status === 'Vencido') {
+                paidInput.value = '0';
+                paidDateInput.value = '';
+                return;
+            }
+            if (status === 'Pago') {
+                const previsto = parseFloat(document.getElementById('modalMensalidadePrevisto').value) || 0;
+                if ((parseFloat(paidInput.value) || 0) < previsto) paidInput.value = previsto;
+                if (!paidDateInput.value) paidDateInput.value = new Date().toISOString().split('T')[0];
+            }
         }
 
         function closeMensalidadeModal() {
@@ -2701,11 +2717,19 @@
             const previsto = parseFloat(document.getElementById('modalMensalidadePrevisto').value) || 0;
             let paidValue = parseFloat(document.getElementById('modalMensalidadePago').value) || 0;
             let paidDate = document.getElementById('modalMensalidadeDataPgto').value;
-            const status = document.getElementById('modalMensalidadeStatus').value;
+            let status = document.getElementById('modalMensalidadeStatus').value;
 
             const item = mensalidadesData.find(m => m.id === id);
             if(!item) return;
 
+            if (status === 'Em aberto' || status === 'Vencido') {
+                paidValue = 0;
+                paidDate = '';
+            } else if (paidValue >= previsto && previsto > 0) {
+                status = 'Pago';
+            } else if (paidValue > 0) {
+                status = 'Parcial';
+            }
             if (status === 'Pago' && paidValue <= 0) paidValue = previsto;
             if (status === 'Pago' && !paidDate) paidDate = new Date().toISOString().split('T')[0];
 
