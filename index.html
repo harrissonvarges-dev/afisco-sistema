@@ -1292,6 +1292,12 @@
             return { month: m, year: y };
         }
 
+        function getPreviousReferencePeriod(month, year) {
+            return month === 1
+                ? { month: 12, year: year - 1 }
+                : { month: month - 1, year };
+        }
+
         function formatCurrency(val) {
             if (val === null || val === undefined) return '';
             if (valuesHidden) return 'R$ ••••••';
@@ -1395,7 +1401,9 @@
 
         function getClientPaymentStatus(clientId) {
             const { month, year } = getSelectedPeriod();
-            return mensalidadesData.find(item => item.clientId === clientId && item.month === month && item.year === year)?.status || 'Sem mensalidade';
+            const reference = getPreviousReferencePeriod(month, year);
+            const item = mensalidadesData.find(candidate => candidate.clientId === clientId && candidate.month === reference.month && candidate.year === reference.year);
+            return item ? mensalidadeDisplayStatus(item) : 'Sem mensalidade';
         }
 
         function paymentStatusBadge(status) {
@@ -1567,11 +1575,12 @@
         // ================= DASHBOARD LOGIC =================
         function renderDashboard() {
             const { month, year } = getSelectedPeriod();
-            document.getElementById('dashSubtitle').innerText = `Resumo consolidado para ${mesesNomes[month]} de ${year}.`;
-            document.getElementById('lblCurrentMonthYear').innerText = `${mesesNomes[month]} / ${year}`;
+            const reference = getPreviousReferencePeriod(month, year);
+            document.getElementById('dashSubtitle').innerText = `Recebimentos de ${mesesNomes[month]} de ${year}, referentes a ${mesesNomes[reference.month]} de ${reference.year}.`;
+            document.getElementById('lblCurrentMonthYear').innerText = `${mesesNomes[month]} / ${year} · Ref. ${mesesNomes[reference.month]}`;
 
             const activeClients = clientesData.filter(c => c.status === 'ativo');
-            const mensPeriod = mensalidadesData.filter(m => m.month === month && m.year === year);
+            const mensPeriod = mensalidadesData.filter(m => m.month === reference.month && m.year === reference.year);
 
             let previsto = 0;
             let recebido = 0;
@@ -1605,7 +1614,7 @@
             document.getElementById('kpiClientesAtivosCount').innerText = `${activeClients.length} clientes ativos`;
             document.getElementById('badgeInadCount').innerText = clientesInadCount.size;
 
-            renderResponsibleSummary(mensPeriod);
+            renderResponsibleSummary(mensPeriod, reference);
             renderCharts(previsto, recebido, emAberto, inadimplente);
             renderAdjustmentAlerts();
         }
@@ -1618,7 +1627,7 @@
                 .replace(/[\u0300-\u036f]/g, '');
         }
 
-        function renderResponsibleSummary(mensPeriod) {
+        function renderResponsibleSummary(mensPeriod, reportingReference = null) {
             const section = document.getElementById('adminResponsibleSummary');
             const cards = document.getElementById('responsibleSummaryCards');
             const period = document.getElementById('responsibleSummaryPeriod');
@@ -1631,7 +1640,8 @@
             }
 
             const { month, year } = getSelectedPeriod();
-            period.innerText = `${mesesNomes[month]} / ${year}`;
+            const reference = reportingReference || getPreviousReferencePeriod(month, year);
+            period.innerText = `${mesesNomes[month]} / ${year} · Ref. ${mesesNomes[reference.month]} / ${reference.year}`;
             const summary = new Map();
             mensPeriod.forEach(item => {
                 const client = clientesData.find(candidate => candidate.id === item.clientId);
@@ -2836,7 +2846,8 @@
             tbody.innerHTML = '';
 
             mesesArr.forEach(m => {
-                const list = mensalidadesData.filter(item => item.month === m && item.year === year);
+                const reference = getPreviousReferencePeriod(m, year);
+                const list = mensalidadesData.filter(item => item.month === reference.month && item.year === reference.year);
                 let prev = 0, rec = 0, aberto = 0, inad = 0;
                 list.forEach(i => {
                     prev += i.previsto;
