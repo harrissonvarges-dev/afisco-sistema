@@ -47,7 +47,7 @@ function paymentPixForResponsible(responsible) {
         return { key: '77 9 9206-3910', recipient: 'Marcia Luiz Bahia Varges', qr: 'pix-qrcode-marcia.png', label: 'Pix Márcia Bahia' };
     }
     if (name === 'nando') {
-        return { key: '77 8813-7181', recipient: 'Eronaldo Gomes Varges', qr: 'pix-qrcode-nando.jpeg', label: 'Pix Eronaldo Varges' };
+        return { key: '09.388.965/0001-78', recipient: 'AFISCO CONTABILIDADE (HELIO GOMES VARGES)', qr: 'pix-qrcode-nando.jpeg', label: 'PIX AFISCO CONTABILIDADE' };
     }
     return { key: '', recipient: '', qr: '', label: '' };
 }

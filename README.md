@@ -14,11 +14,11 @@ Esta versão usa o Neon como fonte de verdade. Cadastros e pagamentos só aparec
 - mensalidade/recibo imprimível ao clicar no cliente, preenchido automaticamente com os dados do Neon;
 - vencimento calculado sempre no mês seguinte ao mês de referência, respeitando o dia cadastrado do cliente;
 - mensalidade/recibo dividido em duas partes: via do cliente e via do escritório;
-- PIX definido pelo responsável do cliente: Hélio usa `77 9 9145-8383` com QR da Caixa; Harrisson usa `77 9 9148-3477` com QR próprio; Márcia/Marcinha usa `77 9 9206-3910` e Nando usa `77 8813-7181`, ambos somente com a chave por enquanto;
+- PIX definido pelo responsável do cliente: Hélio usa `77 9 9145-8383` com QR da Caixa; Harrisson usa `77 9 9148-3477` com QR próprio; Márcia/Marcinha usa `77 9 9206-3910`; as mensalidades de Nando usam o PIX CNPJ `09.388.965/0001-78`, em nome de `AFISCO CONTABILIDADE (HELIO GOMES VARGES)`, com QR próprio;
 - o nome completo do titular aparece abaixo de cada chave PIX para o cliente conferir antes de pagar;
 - o QR Code aparece somente na via do cliente; a via do escritório recebe apenas a chave correspondente;
 - seleção de várias mensalidades para impressão em lote, com até três recibos completos por folha A4;
-- envio da via do cliente pelo WhatsApp como imagem; em aparelhos compatíveis a imagem já segue anexada, e nos demais ela é baixada para anexar na conversa aberta;
+- download da via do cliente como imagem PNG, usando o nome completo da empresa como nome do arquivo e sem mensagem de texto;
 - nova aba **Gastos do Escritório**, com data, descrição, categoria, forma de pagamento, observação e valor salvos no Neon;
 - todos os usuários visualizam os gastos; funcionários alteram somente os próprios lançamentos e Hélio pode administrar todos;
 - filtros mensais, busca, totais e média dos gastos do período;
@@ -52,6 +52,6 @@ No primeiro acesso, o sistema cria Hélio como administrador. Depois, Hélio usa
 
 As tabelas `clientes`, `mensalidades`, `gastos`, `usuarios`, `sessoes` e `auditoria` são criadas ou atualizadas automaticamente caso ainda não existam. A aplicação não inclui dados de demonstração, para não misturá-los com os dados reais do escritório.
 
-O WhatsApp nunca dispara mensagens sozinho. Na cobrança simples ele abre a conversa com a mensagem pronta. No botão de envio do recibo, aparelhos compatíveis abrem o compartilhamento com a imagem anexada; nos demais, o sistema baixa a imagem e abre a conversa para o funcionário anexar e revisar antes de enviar.
+O WhatsApp nunca dispara mensagens sozinho. Na cobrança simples ele abre a conversa com a mensagem pronta. No botão do recibo, o sistema baixa somente a imagem PNG com o nome completo da empresa para o funcionário anexar onde preferir.
 
 O reajuste anual também não altera valores sozinho: ele é somente um lembrete. Hélio decide quando reajustar e informa manualmente o novo valor no cadastro.
