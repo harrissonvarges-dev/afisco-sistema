@@ -2521,21 +2521,20 @@
                 return;
             }
             const now = new Date();
-            const currentMonth = now.getMonth() + 1;
-            const currentYear = now.getFullYear();
+            const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
             const ids = mensalidadesData
                 .filter(item => {
-                    const isPastMonth = item.year < currentYear
-                        || (item.year === currentYear && item.month < currentMonth);
+                    const dueDate = String(item.due || '').slice(0, 10);
                     return item.clientId === clientId
-                        && isPastMonth
+                        && dueDate
+                        && dueDate <= today
                         && item.status !== 'Pago'
                         && canOperateMensalidade(item);
                 })
                 .sort((a, b) => a.year - b.year || a.month - b.month)
                 .map(item => item.id);
             if (!ids.length) {
-                showToast('Este cliente não possui honorários pendentes de meses anteriores.', 'error');
+                showToast('Este cliente não possui honorários vencidos pendentes.', 'error');
                 return;
             }
             showReceiptModal(ids);
