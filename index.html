@@ -543,6 +543,7 @@
                         <option value="Pago">Pago</option>
                         <option value="Vencido">Vencido</option>
                         <option value="Parcial">Parcial</option>
+                        <option value="A vencer">A vencer</option>
                     </select>
                 </div>
                 <div>
@@ -2161,6 +2162,13 @@
             return true;
         }
 
+        function mensalidadeDisplayStatus(item) {
+            const dueDate = String(item?.due || '').slice(0, 10);
+            const now = new Date();
+            const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            return item?.status === 'Em aberto' && dueDate && dueDate > today ? 'A vencer' : item?.status;
+        }
+
         function renderMensalidadesTable() {
             syncBillingResponsibleFilter();
             const { month, year } = getSelectedPeriod();
@@ -2177,7 +2185,7 @@
                 const cli = clientesData.find(c => c.id === item.clientId);
                 if(!cli) return false;
                 const matchName = cli.name.toLowerCase().includes(search);
-                const matchStatus = statusFilter === 'todos' || item.status === statusFilter;
+                const matchStatus = statusFilter === 'todos' || mensalidadeDisplayStatus(item) === statusFilter;
                 const matchResponsible = responsibleFilter === 'todos' || cli.responsible === responsibleFilter;
                 const matchValue = matchesBillingValue(item.previsto, valueFilter);
                 return matchName && matchStatus && matchResponsible && matchValue;
@@ -2194,13 +2202,15 @@
             filtered.forEach(item => {
                 const cli = clientesData.find(c => c.id === item.clientId);
                 if(!cli) return;
+                const displayStatus = mensalidadeDisplayStatus(item);
                 const canViewFinancials = canViewMensalidadeFinancials(item);
                 const canOperate = canOperateMensalidade(item);
 
                 let statusBadge = "";
-                if(item.status === 'Pago') statusBadge = "bg-emerald-100 text-emerald-800";
-                else if(item.status === 'Vencido') statusBadge = "bg-red-100 text-afisco-red font-bold";
-                else if(item.status === 'Parcial') statusBadge = "bg-amber-100 text-amber-800";
+                if(displayStatus === 'Pago') statusBadge = "bg-emerald-100 text-emerald-800";
+                else if(displayStatus === 'Vencido') statusBadge = "bg-red-100 text-afisco-red font-bold";
+                else if(displayStatus === 'Parcial') statusBadge = "bg-amber-100 text-amber-800";
+                else if(displayStatus === 'A vencer') statusBadge = "bg-blue-100 text-blue-700";
                 else statusBadge = "bg-slate-100 text-slate-700";
 
                 const mesesPagos = mensalidadesData.filter(m => m.clientId === cli.id && m.status === 'Pago').length;
@@ -2226,7 +2236,7 @@
                     <td class="p-4 align-top">
                         ${canViewFinancials ? `<div><span class="text-[10px] uppercase text-slate-400">Previsto</span><div class="font-bold text-slate-800">${formatCurrency(item.previsto)}</div></div><div class="mt-2"><span class="text-[10px] uppercase text-slate-400">Pago</span><div class="font-bold text-emerald-600">${formatCurrency(item.paidValue)}</div></div>` : ''}
                     </td>
-                    <td class="p-4 align-top"><span class="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge}">${item.status}</span></td>
+                    <td class="p-4 align-top"><span class="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge}">${displayStatus}</span></td>
                     <td class="p-4 align-top text-right">
                         <div class="flex flex-wrap justify-end gap-2">
                             ${canOperate && item.status !== 'Pago' ? `<button onclick="event.stopPropagation(); openWhatsAppForClient(${cli.id}, ${item.id})" title="Cobrar pelo WhatsApp" aria-label="Cobrar pelo WhatsApp" class="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100 hover:text-emerald-900"><i class="fa-brands fa-whatsapp"></i></button>` : ''}
@@ -2251,7 +2261,7 @@
                     && item.month === month
                     && item.year === year
                     && cli.name.toLowerCase().includes(search)
-                    && (statusFilter === 'todos' || item.status === statusFilter)
+                    && (statusFilter === 'todos' || mensalidadeDisplayStatus(item) === statusFilter)
                     && (responsibleFilter === 'todos' || cli.responsible === responsibleFilter)
                     && matchesBillingValue(item.previsto, valueFilter)
                     && canOperateMensalidade(item);
@@ -2898,7 +2908,7 @@
                     totalPagoCli += m.paidValue;
                     mesesPagosCli++;
                 }
-                if(m.status === 'Vencido' || m.status === 'Em aberto' || m.status === 'Parcial') {
+                if(['Vencido', 'Em aberto', 'Parcial'].includes(m.status) && mensalidadeDisplayStatus(m) !== 'A vencer') {
                     totalDevendoCli += (m.previsto - m.paidValue);
                 }
             });
@@ -2908,6 +2918,14 @@
                 historyRows = `<tr><td colspan="6" class="p-6 text-center text-slate-400">Nenhum histórico de mensalidade registrado para este cliente.</td></tr>`;
             } else {
                 cliMensalidades.sort((a,b) => b.year - a.year || b.month - a.month).forEach(m => {
+                    const displayStatus = mensalidadeDisplayStatus(m);
+                    const historyStatusClass = displayStatus === 'Pago'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : displayStatus === 'A vencer'
+                            ? 'bg-blue-100 text-blue-700'
+                            : displayStatus === 'Parcial'
+                                ? 'bg-amber-100 text-amber-800'
+                                : 'bg-red-100 text-afisco-red';
                     historyRows += `
                         <tr class="hover:bg-slate-50 transition">
                             <td class="p-3 font-medium">${mesesNomes[m.month]} / ${m.year}</td>
@@ -2915,7 +2933,7 @@
                             <td class="p-3">${formatDate(m.due)}</td>
                             <td class="p-3">${formatDate(m.paidDate)}</td>
                             <td class="p-3 font-semibold text-emerald-600">${canViewFinancials ? formatCurrency(m.paidValue) : ''}</td>
-                            <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-semibold ${m.status === 'Pago' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-afisco-red'}">${m.status}</span></td>
+                            <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-semibold ${historyStatusClass}">${displayStatus}</span></td>
                         </tr>
                     `;
                 });
