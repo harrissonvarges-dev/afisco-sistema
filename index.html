@@ -858,7 +858,7 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">CNPJ</label>
-                        <input type="text" id="modalClientCnpj" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                        <input type="text" id="modalClientCnpj" inputmode="numeric" maxlength="18" oninput="this.value = formatCpfCnpj(this.value)" placeholder="CPF ou CNPJ" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">WhatsApp</label>
@@ -1299,6 +1299,23 @@
 
         function formatCurrencyVisible(val) {
             return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+        }
+
+        function formatCpfCnpj(value) {
+            const digits = String(value || '').replace(/\D/g, '').slice(0, 14);
+            if (digits.length <= 11) {
+                let formatted = digits.slice(0, 3);
+                if (digits.length > 3) formatted += `.${digits.slice(3, 6)}`;
+                if (digits.length > 6) formatted += `.${digits.slice(6, 9)}`;
+                if (digits.length > 9) formatted += `-${digits.slice(9, 11)}`;
+                return formatted;
+            }
+            let formatted = digits.slice(0, 2);
+            if (digits.length > 2) formatted += `.${digits.slice(2, 5)}`;
+            if (digits.length > 5) formatted += `.${digits.slice(5, 8)}`;
+            if (digits.length > 8) formatted += `/${digits.slice(8, 12)}`;
+            if (digits.length > 12) formatted += `-${digits.slice(12, 14)}`;
+            return formatted;
         }
 
         function formatPercentage(val) {
@@ -2037,7 +2054,7 @@
                 if(c) {
                     document.getElementById('modalClientId').value = c.id;
                     document.getElementById('modalClientName').value = c.name;
-                    document.getElementById('modalClientCnpj').value = c.cnpj;
+                    document.getElementById('modalClientCnpj').value = formatCpfCnpj(c.cnpj);
                     document.getElementById('modalClientPhone').value = c.phone || '';
                     document.getElementById('modalClientResponsible').value = normalizePersonName(c.responsible) === 'marcinha' ? 'Marcia' : c.responsible;
                     document.getElementById('modalClientCollector').value = c.collector || '';
