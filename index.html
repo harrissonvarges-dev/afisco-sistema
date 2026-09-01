@@ -2514,6 +2514,33 @@
             showReceiptModal([id]);
         }
 
+        function openPastDueReceiptsForClient(clientId) {
+            const client = clientesData.find(item => item.id === clientId);
+            if (!client || !canOperateClient(client)) {
+                showToast('Os honorários deste cliente não estão disponíveis no seu acesso.', 'error');
+                return;
+            }
+            const now = new Date();
+            const currentMonth = now.getMonth() + 1;
+            const currentYear = now.getFullYear();
+            const ids = mensalidadesData
+                .filter(item => {
+                    const isPastMonth = item.year < currentYear
+                        || (item.year === currentYear && item.month < currentMonth);
+                    return item.clientId === clientId
+                        && isPastMonth
+                        && item.status !== 'Pago'
+                        && canOperateMensalidade(item);
+                })
+                .sort((a, b) => a.year - b.year || a.month - b.month)
+                .map(item => item.id);
+            if (!ids.length) {
+                showToast('Este cliente não possui honorários pendentes de meses anteriores.', 'error');
+                return;
+            }
+            showReceiptModal(ids);
+        }
+
         function printSelectedReceipts() {
             const ids = mensalidadesData
                 .filter(item => selectedMensalidadeIds.has(item.id) && canOperateMensalidade(item))
@@ -2920,6 +2947,7 @@
                         </div>
                         <div class="mt-4 flex gap-2">
                             ${canOperate ? `<button onclick="openWhatsAppForClient(${cli.id})" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-semibold transition"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>` : ''}
+                            ${canOperate ? `<button onclick="openPastDueReceiptsForClient(${cli.id})" class="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-xl text-xs font-semibold transition"><i class="fa-solid fa-layer-group"></i> Imprimir meses pendentes</button>` : ''}
                             ${canManageClient(cli) ? `<button onclick="openClientModal('edit', ${cli.id})" class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-semibold transition"><i class="fa-solid fa-pen"></i> Editar Cadastro</button>` : ''}
                         </div>
                     </div>
