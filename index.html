@@ -2334,31 +2334,37 @@
             if (printButton) printButton.disabled = count === 0;
             if (whatsappButton) {
                 whatsappButton.disabled = count === 0;
-                const remaining = whatsappMensalidadeQueue.length;
-                whatsappButton.innerHTML = remaining
-                    ? `<i class="fa-solid fa-download mr-1"></i> Baixar próxima (${remaining})`
-                    : '<i class="fa-solid fa-download mr-1"></i> Baixar selecionadas';
+                whatsappButton.innerHTML = `<i class="fa-solid fa-download mr-1"></i> Baixar selecionadas${count ? ` (${count})` : ''}`;
             }
         }
 
         async function sendNextSelectedWhatsApp() {
-            if (!whatsappMensalidadeQueue.length) {
-                whatsappMensalidadeQueue = mensalidadesData
-                    .filter(item => selectedMensalidadeIds.has(item.id) && canOperateMensalidade(item))
-                    .sort((a, b) => a.id - b.id)
-                    .map(item => item.id);
-            }
-            const id = whatsappMensalidadeQueue.shift();
-            if (!id) {
+            const ids = mensalidadesData
+                .filter(item => selectedMensalidadeIds.has(item.id) && canOperateMensalidade(item))
+                .sort((a, b) => a.id - b.id)
+                .map(item => item.id);
+            if (!ids.length) {
                 showToast('Selecione ao menos uma mensalidade.', 'error');
                 return;
             }
-            const item = mensalidadesData.find(m => m.id === id);
-            if (item) await shareReceiptWhatsApp(item.id);
-            selectedMensalidadeIds.delete(id);
-            if (!whatsappMensalidadeQueue.length) showToast('Todas as imagens selecionadas foram baixadas.');
-            else showToast(`Imagem baixada. Restam ${whatsappMensalidadeQueue.length} na fila.`);
-            updateBatchSelectionControls();
+            const button = document.getElementById('whatsappSelectedButton');
+            button.disabled = true;
+            let downloaded = 0;
+            try {
+                for (let index = 0; index < ids.length; index++) {
+                    button.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Baixando ${index + 1} de ${ids.length}`;
+                    const success = await shareReceiptWhatsApp(ids[index], true);
+                    if (success) {
+                        downloaded++;
+                        selectedMensalidadeIds.delete(ids[index]);
+                    }
+                }
+                showToast(`${downloaded} ${downloaded === 1 ? 'imagem baixada' : 'imagens baixadas'}. Se o navegador perguntar, permita vários downloads.`);
+            } finally {
+                whatsappMensalidadeQueue = [];
+                closeReceiptModal();
+                updateBatchSelectionControls();
+            }
         }
 
         function openWhatsAppWeb(phone, message) {
@@ -2645,22 +2651,22 @@
             return `${name || 'Cliente'}.png`;
         }
 
-        async function shareReceiptWhatsApp(id) {
+        async function shareReceiptWhatsApp(id, silent = false) {
             const data = getReceiptData(id);
             if (!data) {
-                showToast('Este recibo não está disponível no seu acesso.', 'error');
-                return;
+                if (!silent) showToast('Este recibo não está disponível no seu acesso.', 'error');
+                return false;
             }
             const { item, cli } = data;
             if (typeof html2canvas !== 'function') {
-                showToast('Não foi possível preparar a imagem. Atualize a página e tente novamente.', 'error');
-                return;
+                if (!silent) showToast('Não foi possível preparar a imagem. Atualize a página e tente novamente.', 'error');
+                return false;
             }
 
             showReceiptModal([id]);
             const receiptDocument = document.querySelector(`.receipt-document[data-receipt-id="${id}"]`);
             const clientCopy = receiptDocument?.querySelector('.receipt-copy');
-            if (!clientCopy) return;
+            if (!clientCopy) return false;
             const shareButton = document.getElementById('receiptWhatsAppButton');
             const originalLabel = shareButton.innerHTML;
             shareButton.disabled = true;
@@ -2682,9 +2688,11 @@
                 link.download = fileName;
                 link.click();
                 setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
-                showToast(`Imagem salva como ${fileName}`);
+                if (!silent) showToast(`Imagem salva como ${fileName}`);
+                return true;
             } catch (error) {
                 if (error?.name !== 'AbortError') showToast(error.message || 'Não foi possível preparar o recibo.', 'error');
+                return false;
             } finally {
                 shareButton.disabled = false;
                 shareButton.innerHTML = originalLabel;
