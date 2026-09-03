@@ -2509,7 +2509,7 @@
                 } else if (monthlyFee.status === 'Parcial') {
                     message += ` Consta um saldo de ${formatCurrencyVisible(amountDue)} nos honorários contábeis da empresa ${client.name}, referentes a ${mesesNomes[monthlyFee.month]} de ${monthlyFee.year}.`;
                 } else if (monthlyFee.status === 'Pago') {
-                    message += ` Confirmamos o pagamento dos honorários contábeis da empresa ${client.name}, referentes a ${mesesNomes[monthlyFee.month]} de ${monthlyFee.year}.`;
+                    message = `Olá, ${contactName}. Confirmamos o pagamento dos honorários contábeis da empresa ${client.name}, referentes a ${mesesNomes[monthlyFee.month]} de ${monthlyFee.year}. Segue o recibo. Agradecemos pela confiança.`;
                 } else {
                     message += ` Os honorários contábeis da empresa ${client.name}, referentes a ${mesesNomes[monthlyFee.month]} de ${monthlyFee.year}, no valor de ${formatCurrencyVisible(monthlyFee.previsto)}, vencem em ${formatDate(monthlyFee.due)}.`;
                 }
@@ -2809,6 +2809,9 @@
 
         function buildReceiptShareMessage(item, cli) {
             const contactName = String(cli.contactName || cli.name).trim();
+            if (item.status === 'Pago') {
+                return `Olá, ${contactName}. Confirmamos o pagamento dos honorários contábeis da empresa ${cli.name}, referentes a ${mesesNomes[item.month]} de ${item.year}. Segue o recibo. Agradecemos pela confiança.\n\nAtenciosamente,\nAfisco Contabilidade.`;
+            }
             return `Olá, ${contactName}. Segue o documento referente aos honorários contábeis da empresa ${cli.name}, relativos a ${mesesNomes[item.month]} de ${item.year}.\n\nAtenciosamente,\nAfisco Contabilidade.`;
         }
 
