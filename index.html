@@ -1040,7 +1040,7 @@
             </div>
             <div class="grid gap-3">
                 <button onclick="confirmWhatsAppChoice('web')" class="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left text-emerald-800 transition hover:bg-emerald-100"><i class="fa-solid fa-globe text-lg"></i><span><strong class="block text-sm">WhatsApp Web</strong><small class="text-xs">Abrir a conversa no navegador</small></span></button>
-                <button onclick="confirmWhatsAppChoice('windows')" class="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-left text-green-800 transition hover:bg-green-100"><i class="fa-brands fa-whatsapp text-xl"></i><span><strong class="block text-sm">WhatsApp do Windows</strong><small class="text-xs">Compartilhar a imagem pelo aplicativo</small></span></button>
+                <button onclick="confirmWhatsAppChoice('windows')" class="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-left text-green-800 transition hover:bg-green-100"><i class="fa-brands fa-whatsapp text-xl"></i><span><strong class="block text-sm">WhatsApp do Windows</strong><small class="text-xs">Abrir a conversa diretamente no aplicativo</small></span></button>
             </div>
         </div>
     </div>
@@ -2440,6 +2440,12 @@
             window.open(`https://web.whatsapp.com/send?phone=${encodedPhone}&text=${encodedMessage}`, '_blank', 'noopener,noreferrer');
         }
 
+        function openWhatsAppWindows(phone, message) {
+            const encodedPhone = encodeURIComponent(phone);
+            const encodedMessage = encodeURIComponent(message);
+            window.location.href = `whatsapp://send?phone=${encodedPhone}&text=${encodedMessage}`;
+        }
+
         function openWhatsAppChoice(clientId, mensalidadeId = null) {
             const client = clientesData.find(item => item.id === clientId);
             if (!client || !canOperateClient(client)) {
@@ -2468,18 +2474,10 @@
             if (!choice) return;
             const { clientId, mensalidadeId } = choice;
             closeWhatsAppChoice();
-            if (destination === 'web') {
-                openWhatsAppForClient(clientId, mensalidadeId);
-                return;
-            }
-            if (!mensalidadeId) {
-                showToast('Não há documento deste cliente no período selecionado.', 'error');
-                return;
-            }
-            shareReceiptNative(mensalidadeId);
+            openWhatsAppForClient(clientId, mensalidadeId, destination);
         }
 
-        function openWhatsAppForClient(clientId, mensalidadeId = null) {
+        function openWhatsAppForClient(clientId, mensalidadeId = null, destination = 'web') {
             if (valuesHidden) {
                 showToast('Abra o olhinho antes de preparar uma cobrança com valor.', 'error');
                 return;
@@ -2519,7 +2517,8 @@
                 message += ` Entramos em contato sobre os honorários contábeis da empresa ${client.name}.`;
             }
             message += `\n\nAtenciosamente,\nAfisco Contabilidade.`;
-            openWhatsAppWeb(phone, message);
+            if (destination === 'windows') openWhatsAppWindows(phone, message);
+            else openWhatsAppWeb(phone, message);
         }
 
         function openReceiptForClient(clientId) {
