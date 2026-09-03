@@ -2443,7 +2443,7 @@
         function openWhatsAppWeb(phone, message) {
             const encodedPhone = encodeURIComponent(phone);
             const encodedMessage = encodeURIComponent(message);
-            window.open(`https://web.whatsapp.com/send?phone=${encodedPhone}&text=${encodedMessage}`, '_blank', 'noopener,noreferrer');
+            window.location.assign(`https://web.whatsapp.com/send?phone=${encodedPhone}&text=${encodedMessage}`);
         }
 
         function openWhatsAppWindows(phone, message) {
