@@ -107,15 +107,16 @@
 
         function setPeriodDefaults() {
             const now = new Date();
+            const referenceDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
             const monthSelect = document.getElementById('billingMonth');
             const yearSelect = document.getElementById('billingYear');
             if (!monthSelect || !yearSelect || yearSelect.options.length) return;
-            monthSelect.value = String(now.getMonth() + 1);
+            monthSelect.value = String(referenceDate.getMonth() + 1);
             for (let year = now.getFullYear() - 3; year <= now.getFullYear() + 1; year++) {
                 const option = document.createElement('option');
                 option.value = String(year);
                 option.innerText = String(year);
-                option.selected = year === now.getFullYear();
+                option.selected = year === referenceDate.getFullYear();
                 yearSelect.appendChild(option);
             }
         }
@@ -2369,8 +2370,22 @@
         }
 
         function openWhatsAppWeb(phone, message) {
-            const url = `https://web.whatsapp.com/send?phone=${encodeURIComponent(phone)}&text=${encodeURIComponent(message)}`;
-            window.open(url, '_blank', 'noopener,noreferrer');
+            const encodedPhone = encodeURIComponent(phone);
+            const encodedMessage = encodeURIComponent(message);
+            const nativeUrl = `whatsapp://send?phone=${encodedPhone}&text=${encodedMessage}`;
+            const webUrl = `https://wa.me/${encodedPhone}?text=${encodedMessage}`;
+            let nativeOpened = false;
+
+            const markNativeOpened = () => {
+                if (document.hidden) nativeOpened = true;
+            };
+            document.addEventListener('visibilitychange', markNativeOpened, { once: true });
+            window.addEventListener('blur', () => { nativeOpened = true; }, { once: true });
+            window.location.href = nativeUrl;
+
+            window.setTimeout(() => {
+                if (!nativeOpened && !document.hidden) window.location.href = webUrl;
+            }, 1800);
         }
 
         function openWhatsAppForClient(clientId, mensalidadeId = null) {
@@ -2396,22 +2411,22 @@
             const monthlyFee = mensalidadeId
                 ? mensalidadesData.find(item => item.id === mensalidadeId)
                 : mensalidadesData.find(item => item.clientId === client.id && item.month === month && item.year === year);
-            let message = `Olá! Tudo bem? Aqui é da Afisco Contabilidade.`;
+            let message = `Olá! Aqui é da Afisco Contabilidade.`;
             if (monthlyFee) {
                 const amountDue = Math.max(0, monthlyFee.previsto - monthlyFee.paidValue);
                 if (monthlyFee.status === 'Vencido') {
-                    message += ` Identificamos que a mensalidade de ${mesesNomes[monthlyFee.month]} de ${monthlyFee.year}, no valor de ${formatCurrencyVisible(amountDue)}, venceu em ${formatDate(monthlyFee.due)}. Podemos ajudar com a regularização?`;
+                    message += ` Os honorários contábeis referentes a ${mesesNomes[monthlyFee.month]} de ${monthlyFee.year}, no valor de ${formatCurrencyVisible(amountDue)}, venceram em ${formatDate(monthlyFee.due)}.`;
                 } else if (monthlyFee.status === 'Parcial') {
-                    message += ` Consta um saldo de ${formatCurrencyVisible(amountDue)} na mensalidade de ${mesesNomes[monthlyFee.month]} de ${monthlyFee.year}, com vencimento em ${formatDate(monthlyFee.due)}. Podemos ajudar?`;
+                    message += ` Consta um saldo de ${formatCurrencyVisible(amountDue)} nos honorários contábeis referentes a ${mesesNomes[monthlyFee.month]} de ${monthlyFee.year}.`;
                 } else if (monthlyFee.status === 'Pago') {
-                    message += ` Confirmamos o pagamento da mensalidade de ${mesesNomes[monthlyFee.month]} de ${monthlyFee.year}. Obrigado!`;
+                    message += ` Confirmamos o pagamento dos honorários contábeis referentes a ${mesesNomes[monthlyFee.month]} de ${monthlyFee.year}.`;
                 } else {
-                    message += ` Passando para lembrar da mensalidade de ${mesesNomes[monthlyFee.month]} de ${monthlyFee.year}, no valor de ${formatCurrencyVisible(monthlyFee.previsto)}, com vencimento em ${formatDate(monthlyFee.due)}.`;
+                    message += ` Os honorários contábeis referentes a ${mesesNomes[monthlyFee.month]} de ${monthlyFee.year}, no valor de ${formatCurrencyVisible(monthlyFee.previsto)}, vencem em ${formatDate(monthlyFee.due)}.`;
                 }
             } else {
-                message += ` Entramos em contato sobre sua mensalidade. Quando puder, fale conosco por aqui.`;
+                message += ` Entramos em contato sobre seus honorários contábeis.`;
             }
-            message += `\n\nAtenciosamente, Afisco Contabilidade.`;
+            message += `\n\nAtenciosamente,\nAfisco Contabilidade.`;
             openWhatsAppWeb(phone, message);
         }
 
@@ -2702,10 +2717,8 @@
         }
 
         function buildReceiptShareMessage(item, cli) {
-            const amount = item.status === 'Pago' && item.paidValue > 0 ? item.paidValue : item.previsto;
-            const pix = getClientPaymentPix(cli);
-            const pixMessage = pix.key ? ` PIX: ${pix.key}${pix.recipient ? `, em nome de ${pix.recipient}` : ''}.` : '';
-            return `Olá, ${cli.name}! Segue ${item.status === 'Pago' ? 'o recibo' : 'o documento de honorários contábeis'} da Afisco Contabilidade referente a ${mesesNomes[item.month]} de ${item.year}, no valor de ${formatCurrencyVisible(amount)}, com vencimento em ${formatDate(item.due)}.${pixMessage}`;
+            const documentName = item.status === 'Pago' ? 'recibo' : 'documento de honorários contábeis';
+            return `Olá, ${cli.name}. Segue o ${documentName} referente a ${mesesNomes[item.month]} de ${item.year}.\n\nAtenciosamente,\nAfisco Contabilidade.`;
         }
 
         async function shareReceiptNative(id) {
