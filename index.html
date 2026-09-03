@@ -61,6 +61,7 @@
         let sessionCheckTimer = null;
         let selectedMensalidadeIds = new Set();
         let activeReceiptIds = [];
+        let pendingWhatsAppChoice = null;
         let whatsappMensalidadeQueue = [];
         try {
             valuesHidden = localStorage.getItem('afisco_values_hidden') === 'true';
@@ -474,6 +475,9 @@
                     <input type="text" id="clientSearchInput" onkeyup="renderClientsTable()" placeholder="Pesquisar por nome ou CNPJ..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
                 </div>
                 <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <select id="clientResponsibleFilter" onchange="renderClientsTable()" class="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium px-3 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                        <option value="todos">Todos os responsáveis</option>
+                    </select>
                     <select id="clientStatusFilter" onchange="renderClientsTable()" class="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium px-3 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-afisco-blue">
                         <option value="todos">Todos os Status</option>
                         <option value="ativo" selected>Ativos</option>
@@ -877,6 +881,11 @@
                     <label class="block text-xs font-semibold text-slate-600 mb-1">Nome da Empresa / Cliente</label>
                     <input type="text" id="modalClientName" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
                 </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Nome da pessoa para a mensagem (opcional)</label>
+                    <input type="text" id="modalClientContactName" placeholder="Ex: João" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-afisco-blue">
+                    <p class="mt-1 text-[10px] text-slate-500">Usado na saudação do WhatsApp. Se ficar vazio, será usado o nome da empresa.</p>
+                </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">CNPJ</label>
@@ -1020,6 +1029,22 @@
         </div>
     </div>
 
+    <div id="whatsappChoiceModal" onclick="if(event.target === this) closeWhatsAppChoice()" class="fixed inset-0 z-[70] hidden items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="whatsappChoiceTitle">
+        <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+            <div class="mb-5 flex items-start justify-between gap-3">
+                <div>
+                    <h3 id="whatsappChoiceTitle" class="text-lg font-bold text-afisco-blue">Como deseja enviar?</h3>
+                    <p class="mt-1 text-xs text-slate-500">Escolha onde abrir o WhatsApp.</p>
+                </div>
+                <button onclick="closeWhatsAppChoice()" class="text-slate-400 hover:text-slate-700" aria-label="Fechar"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="grid gap-3">
+                <button onclick="confirmWhatsAppChoice('web')" class="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left text-emerald-800 transition hover:bg-emerald-100"><i class="fa-solid fa-globe text-lg"></i><span><strong class="block text-sm">WhatsApp Web</strong><small class="text-xs">Abrir a conversa no navegador</small></span></button>
+                <button onclick="confirmWhatsAppChoice('windows')" class="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-left text-green-800 transition hover:bg-green-100"><i class="fa-brands fa-whatsapp text-xl"></i><span><strong class="block text-sm">WhatsApp do Windows</strong><small class="text-xs">Compartilhar a imagem pelo aplicativo</small></span></button>
+            </div>
+        </div>
+    </div>
+
     <!-- Visualização e impressão da mensalidade / recibo -->
     <div id="receiptModal" onclick="if(event.target === this) closeReceiptModal()" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[60] hidden overflow-y-auto p-4 sm:p-8" role="dialog" aria-modal="true" aria-labelledby="receiptModalTitle">
         <div class="mx-auto w-full max-w-5xl">
@@ -1031,7 +1056,7 @@
                 <div class="flex flex-wrap gap-2">
                     <button onclick="closeReceiptModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition"><i class="fa-solid fa-xmark mr-1"></i> Fechar</button>
                     <button id="receiptWhatsAppButton" onclick="shareActiveReceiptWhatsApp()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition shadow"><i class="fa-solid fa-download mr-1"></i> Baixar recibo</button>
-                    <button id="receiptNativeShareButton" onclick="shareActiveReceiptNative()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-xl transition shadow"><i class="fa-brands fa-whatsapp mr-1"></i> Enviar no WhatsApp</button>
+                    <button id="receiptNativeShareButton" onclick="openActiveWhatsAppChoice()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-xl transition shadow"><i class="fa-brands fa-whatsapp mr-1"></i> Enviar no WhatsApp</button>
                     <button onclick="printReceipt()" class="px-4 py-2 bg-afisco-blue hover:bg-blue-800 text-white text-xs font-semibold rounded-xl transition shadow"><i class="fa-solid fa-print mr-1"></i> Imprimir</button>
                 </div>
             </div>
@@ -2023,16 +2048,34 @@
         }
 
         // ================= CLIENTES LOGIC =================
+        function syncClientResponsibleFilter() {
+            const select = document.getElementById('clientResponsibleFilter');
+            if (!select) return;
+            const currentValue = select.value || 'todos';
+            const responsaveis = [...new Set(clientesData.map(c => String(c.responsible || '').trim()).filter(Boolean))]
+                .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+            select.innerHTML = '<option value="todos">Todos os responsáveis</option>'
+                + (currentUser?.role !== 'admin' ? '<option value="meus">Somente meus clientes</option>' : '')
+                + responsaveis.map(nome => `<option value="${escapeHtml(nome)}">${escapeHtml(nome)}</option>`).join('');
+            const validValues = ['todos', ...(currentUser?.role !== 'admin' ? ['meus'] : []), ...responsaveis];
+            select.value = validValues.includes(currentValue) ? currentValue : 'todos';
+        }
+
         function renderClientsTable() {
+            syncClientResponsibleFilter();
             const search = document.getElementById('clientSearchInput').value.toLowerCase();
             const statusFilter = document.getElementById('clientStatusFilter').value;
+            const responsibleFilter = document.getElementById('clientResponsibleFilter').value;
             const tbody = document.getElementById('clientsTableBody');
             tbody.innerHTML = '';
 
             const filtered = clientesData.filter(c => {
                 const matchSearch = c.name.toLowerCase().includes(search) || c.cnpj.includes(search) || (c.phone || '').includes(search) || c.responsible.toLowerCase().includes(search) || (c.collector || '').toLowerCase().includes(search);
                 const matchStatus = statusFilter === 'todos' || c.status === statusFilter;
-                return matchSearch && matchStatus;
+                const matchResponsible = responsibleFilter === 'todos'
+                    || (responsibleFilter === 'meus' && canManageClient(c))
+                    || c.responsible === responsibleFilter;
+                return matchSearch && matchStatus && matchResponsible;
             });
 
             if(filtered.length === 0) {
@@ -2089,6 +2132,7 @@
                 document.getElementById('clientModalTitle').innerText = "Novo Cliente";
                 document.getElementById('modalClientId').value = "";
                 document.getElementById('modalClientName').value = "";
+                document.getElementById('modalClientContactName').value = "";
                 document.getElementById('modalClientCnpj').value = "";
                 document.getElementById('modalClientPhone').value = "";
                 document.getElementById('modalClientResponsible').value = isAdmin ? "" : (currentUser?.responsibleName || currentUser?.name || '');
@@ -2103,6 +2147,7 @@
                 if(c) {
                     document.getElementById('modalClientId').value = c.id;
                     document.getElementById('modalClientName').value = c.name;
+                    document.getElementById('modalClientContactName').value = c.contactName || '';
                     document.getElementById('modalClientCnpj').value = formatCpfCnpj(c.cnpj);
                     document.getElementById('modalClientPhone').value = formatPhone(c.phone);
                     document.getElementById('modalClientResponsible').value = normalizePersonName(c.responsible) === 'marcinha' ? 'Marcia' : c.responsible;
@@ -2122,6 +2167,7 @@
         async function saveClientFromModal() {
             const id = document.getElementById('modalClientId').value;
             const name = document.getElementById('modalClientName').value.trim();
+            const contactName = document.getElementById('modalClientContactName').value.trim();
             const cnpj = document.getElementById('modalClientCnpj').value.trim();
             const phone = document.getElementById('modalClientPhone').value.trim();
             const responsible = document.getElementById('modalClientResponsible').value.trim();
@@ -2149,7 +2195,7 @@
                 await apiRequest('/api/clientes', {
                     method: id ? 'PUT' : 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: id || undefined, name, cnpj, phone, responsible, collector, value, dueDay, start, status })
+                    body: JSON.stringify({ id: id || undefined, name, contactName, cnpj, phone, responsible, collector, value, dueDay, start, status })
                 });
                 closeClientModal();
                 await carregarDadosDoBanco({ silent: true });
@@ -2291,8 +2337,7 @@
                     <td class="p-4 align-top"><span class="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge}">${displayStatus}</span></td>
                     <td class="p-4 align-top text-right">
                         <div class="flex flex-wrap justify-end gap-2">
-                            ${canOperate && item.status !== 'Pago' ? `<button onclick="event.stopPropagation(); openWhatsAppForClient(${cli.id}, ${item.id})" title="Cobrar pelo WhatsApp" aria-label="Cobrar pelo WhatsApp" class="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100 hover:text-emerald-900"><i class="fa-brands fa-whatsapp"></i></button>` : ''}
-                            ${canOperate ? `<button onclick="event.stopPropagation(); shareReceiptWhatsApp(${item.id})" title="Baixar mensalidade ou recibo" aria-label="Baixar mensalidade ou recibo" class="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100 hover:text-emerald-900"><i class="fa-solid fa-download"></i></button><button onclick="event.stopPropagation(); shareReceiptNative(${item.id})" title="Enviar documento no WhatsApp instalado" aria-label="Enviar documento no WhatsApp instalado" class="flex h-9 w-9 items-center justify-center rounded-lg bg-green-50 text-green-700 transition hover:bg-green-100 hover:text-green-900"><i class="fa-brands fa-whatsapp"></i></button><button onclick="event.stopPropagation(); openReceiptModal(${item.id})" title="Imprimir mensalidade" aria-label="Imprimir mensalidade" class="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 transition hover:bg-slate-200 hover:text-afisco-blue"><i class="fa-solid fa-print"></i></button><button onclick="event.stopPropagation(); openMensalidadeModal(${item.id})" title="${item.status === 'Pago' ? 'Editar pagamento' : 'Dar baixa'}" aria-label="${item.status === 'Pago' ? 'Editar pagamento' : 'Dar baixa'}" class="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 transition hover:bg-blue-100 hover:text-blue-800"><i class="fa-solid ${item.status === 'Pago' ? 'fa-pen-to-square' : 'fa-check'}"></i></button>` : ''}
+                            ${canOperate ? `<button onclick="event.stopPropagation(); openWhatsAppChoice(${cli.id}, ${item.id})" title="Enviar pelo WhatsApp" aria-label="Enviar pelo WhatsApp" class="flex h-9 w-9 items-center justify-center rounded-lg bg-green-50 text-green-700 transition hover:bg-green-100 hover:text-green-900"><i class="fa-brands fa-whatsapp"></i></button><button onclick="event.stopPropagation(); shareReceiptWhatsApp(${item.id})" title="Baixar mensalidade ou recibo" aria-label="Baixar mensalidade ou recibo" class="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100 hover:text-emerald-900"><i class="fa-solid fa-download"></i></button><button onclick="event.stopPropagation(); openReceiptModal(${item.id})" title="Imprimir mensalidade" aria-label="Imprimir mensalidade" class="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 transition hover:bg-slate-200 hover:text-afisco-blue"><i class="fa-solid fa-print"></i></button><button onclick="event.stopPropagation(); openMensalidadeModal(${item.id})" title="${item.status === 'Pago' ? 'Editar pagamento' : 'Dar baixa'}" aria-label="${item.status === 'Pago' ? 'Editar pagamento' : 'Dar baixa'}" class="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 transition hover:bg-blue-100 hover:text-blue-800"><i class="fa-solid ${item.status === 'Pago' ? 'fa-pen-to-square' : 'fa-check'}"></i></button>` : ''}
                         </div>
                     </td>
                 `;
@@ -2392,20 +2437,46 @@
         function openWhatsAppWeb(phone, message) {
             const encodedPhone = encodeURIComponent(phone);
             const encodedMessage = encodeURIComponent(message);
-            const nativeUrl = `whatsapp://send?phone=${encodedPhone}&text=${encodedMessage}`;
-            const webUrl = `https://wa.me/${encodedPhone}?text=${encodedMessage}`;
-            let nativeOpened = false;
+            window.open(`https://web.whatsapp.com/send?phone=${encodedPhone}&text=${encodedMessage}`, '_blank', 'noopener,noreferrer');
+        }
 
-            const markNativeOpened = () => {
-                if (document.hidden) nativeOpened = true;
-            };
-            document.addEventListener('visibilitychange', markNativeOpened, { once: true });
-            window.addEventListener('blur', () => { nativeOpened = true; }, { once: true });
-            window.location.href = nativeUrl;
+        function openWhatsAppChoice(clientId, mensalidadeId = null) {
+            const client = clientesData.find(item => item.id === clientId);
+            if (!client || !canOperateClient(client)) {
+                showToast('Esta cobrança não está disponível no seu acesso.', 'error');
+                return;
+            }
+            if (!mensalidadeId) {
+                const { month, year } = getSelectedPeriod();
+                mensalidadeId = mensalidadesData.find(item => item.clientId === clientId && item.month === month && item.year === year)?.id || null;
+            }
+            pendingWhatsAppChoice = { clientId, mensalidadeId };
+            const modal = document.getElementById('whatsappChoiceModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
 
-            window.setTimeout(() => {
-                if (!nativeOpened && !document.hidden) window.location.href = webUrl;
-            }, 1800);
+        function closeWhatsAppChoice() {
+            const modal = document.getElementById('whatsappChoiceModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            pendingWhatsAppChoice = null;
+        }
+
+        function confirmWhatsAppChoice(destination) {
+            const choice = pendingWhatsAppChoice;
+            if (!choice) return;
+            const { clientId, mensalidadeId } = choice;
+            closeWhatsAppChoice();
+            if (destination === 'web') {
+                openWhatsAppForClient(clientId, mensalidadeId);
+                return;
+            }
+            if (!mensalidadeId) {
+                showToast('Não há documento deste cliente no período selecionado.', 'error');
+                return;
+            }
+            shareReceiptNative(mensalidadeId);
         }
 
         function openWhatsAppForClient(clientId, mensalidadeId = null) {
@@ -2431,20 +2502,21 @@
             const monthlyFee = mensalidadeId
                 ? mensalidadesData.find(item => item.id === mensalidadeId)
                 : mensalidadesData.find(item => item.clientId === client.id && item.month === month && item.year === year);
-            let message = `Olá! Aqui é da Afisco Contabilidade.`;
+            const contactName = String(client.contactName || client.name).trim();
+            let message = `Olá, ${contactName}.`;
             if (monthlyFee) {
                 const amountDue = Math.max(0, monthlyFee.previsto - monthlyFee.paidValue);
                 if (monthlyFee.status === 'Vencido') {
-                    message += ` Os honorários contábeis referentes a ${mesesNomes[monthlyFee.month]} de ${monthlyFee.year}, no valor de ${formatCurrencyVisible(amountDue)}, venceram em ${formatDate(monthlyFee.due)}.`;
+                    message += ` Os honorários contábeis da empresa ${client.name}, referentes a ${mesesNomes[monthlyFee.month]} de ${monthlyFee.year}, no valor de ${formatCurrencyVisible(amountDue)}, venceram em ${formatDate(monthlyFee.due)}.`;
                 } else if (monthlyFee.status === 'Parcial') {
-                    message += ` Consta um saldo de ${formatCurrencyVisible(amountDue)} nos honorários contábeis referentes a ${mesesNomes[monthlyFee.month]} de ${monthlyFee.year}.`;
+                    message += ` Consta um saldo de ${formatCurrencyVisible(amountDue)} nos honorários contábeis da empresa ${client.name}, referentes a ${mesesNomes[monthlyFee.month]} de ${monthlyFee.year}.`;
                 } else if (monthlyFee.status === 'Pago') {
-                    message += ` Confirmamos o pagamento dos honorários contábeis referentes a ${mesesNomes[monthlyFee.month]} de ${monthlyFee.year}.`;
+                    message += ` Confirmamos o pagamento dos honorários contábeis da empresa ${client.name}, referentes a ${mesesNomes[monthlyFee.month]} de ${monthlyFee.year}.`;
                 } else {
-                    message += ` Os honorários contábeis referentes a ${mesesNomes[monthlyFee.month]} de ${monthlyFee.year}, no valor de ${formatCurrencyVisible(monthlyFee.previsto)}, vencem em ${formatDate(monthlyFee.due)}.`;
+                    message += ` Os honorários contábeis da empresa ${client.name}, referentes a ${mesesNomes[monthlyFee.month]} de ${monthlyFee.year}, no valor de ${formatCurrencyVisible(monthlyFee.previsto)}, vencem em ${formatDate(monthlyFee.due)}.`;
                 }
             } else {
-                message += ` Entramos em contato sobre seus honorários contábeis.`;
+                message += ` Entramos em contato sobre os honorários contábeis da empresa ${client.name}.`;
             }
             message += `\n\nAtenciosamente,\nAfisco Contabilidade.`;
             openWhatsAppWeb(phone, message);
@@ -2737,8 +2809,8 @@
         }
 
         function buildReceiptShareMessage(item, cli) {
-            const documentName = item.status === 'Pago' ? 'recibo' : 'documento de honorários contábeis';
-            return `Olá, ${cli.name}. Segue o ${documentName} referente a ${mesesNomes[item.month]} de ${item.year}.\n\nAtenciosamente,\nAfisco Contabilidade.`;
+            const contactName = String(cli.contactName || cli.name).trim();
+            return `Olá, ${contactName}. Segue o documento referente aos honorários contábeis da empresa ${cli.name}, relativos a ${mesesNomes[item.month]} de ${item.year}.\n\nAtenciosamente,\nAfisco Contabilidade.`;
         }
 
         async function shareReceiptNative(id) {
@@ -2797,6 +2869,17 @@
                 return;
             }
             shareReceiptNative(activeReceiptIds[0]);
+        }
+
+        function openActiveWhatsAppChoice() {
+            if (activeReceiptIds.length !== 1) {
+                showToast('Abra apenas um documento para enviar pelo WhatsApp.', 'error');
+                return;
+            }
+            const data = getReceiptData(activeReceiptIds[0]);
+            if (!data) return;
+            closeReceiptModal();
+            openWhatsAppChoice(data.cli.id, data.item.id);
         }
 
         function shareActiveReceiptWhatsApp() {
@@ -3191,7 +3274,7 @@
                             ${canViewFinancials ? `<div class="text-sm font-semibold text-emerald-600 mt-1">Total Pago: ${formatCurrency(totalPagoCli)}</div><div class="text-sm font-semibold text-afisco-red mt-1">Total em Aberto/Vencido: ${formatCurrency(totalDevendoCli)}</div>` : ''}
                         </div>
                         <div class="mt-4 flex gap-2">
-                            ${canOperate ? `<button onclick="openWhatsAppForClient(${cli.id})" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-semibold transition"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>` : ''}
+                            ${canOperate ? `<button onclick="openWhatsAppChoice(${cli.id})" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-semibold transition"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>` : ''}
                             ${canOperate ? `<button onclick="openPastDueReceiptsForClient(${cli.id})" class="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-xl text-xs font-semibold transition"><i class="fa-solid fa-layer-group"></i> Imprimir meses pendentes</button>` : ''}
                             ${canManageClient(cli) ? `<button onclick="openClientModal('edit', ${cli.id})" class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-semibold transition"><i class="fa-solid fa-pen"></i> Editar Cadastro</button>` : ''}
                         </div>

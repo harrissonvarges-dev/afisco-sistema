@@ -76,6 +76,7 @@ function normalizeCliente(body) {
     return {
         id: body.id ? Number(body.id) : null,
         name: String(body.name || '').trim(),
+        contactName: String(body.contactName || body.contact_name || '').trim().slice(0, 150),
         cnpj: String(body.cnpj || '').trim(),
         phone: String(body.phone || body.whatsapp || '').trim().slice(0, 30),
         responsible: String(body.responsible || '').trim(),
@@ -118,10 +119,10 @@ module.exports = async function handler(req, res) {
                 await db.query('BEGIN');
                 const { rows } = await db.query(
                     `INSERT INTO clientes
-                        (name, cnpj, phone, responsible, collector, value, due_day, start_date, status)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                        (name, contact_name, cnpj, phone, responsible, collector, value, due_day, start_date, status)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                      RETURNING *`,
-                    [cliente.name, cliente.cnpj, cliente.phone, cliente.responsible, cliente.collector, cliente.value, cliente.dueDay, cliente.start, cliente.status]
+                    [cliente.name, cliente.contactName, cliente.cnpj, cliente.phone, cliente.responsible, cliente.collector, cliente.value, cliente.dueDay, cliente.start, cliente.status]
                 );
 
                 const created = rows[0];
@@ -197,15 +198,15 @@ module.exports = async function handler(req, res) {
 
                 const { rows } = await db.query(
                     `UPDATE clientes
-                     SET name=$1, cnpj=$2, phone=$3, responsible=$4, collector=$5, value=$6,
-                         due_day=$7, start_date=$8, status=$9,
+                     SET name=$1, contact_name=$2, cnpj=$3, phone=$4, responsible=$5, collector=$6, value=$7,
+                         due_day=$8, start_date=$9, status=$10,
                          last_adjustment_date=CASE
-                             WHEN value IS DISTINCT FROM $6::numeric THEN CURRENT_DATE
+                             WHEN value IS DISTINCT FROM $7::numeric THEN CURRENT_DATE
                              ELSE last_adjustment_date
                          END
-                     WHERE id=$10
+                     WHERE id=$11
                      RETURNING *`,
-                    [cliente.name, cliente.cnpj, cliente.phone, cliente.responsible, cliente.collector, cliente.value, cliente.dueDay, cliente.start, cliente.status, cliente.id]
+                    [cliente.name, cliente.contactName, cliente.cnpj, cliente.phone, cliente.responsible, cliente.collector, cliente.value, cliente.dueDay, cliente.start, cliente.status, cliente.id]
                 );
                 const updated = rows[0];
                 const oldClient = mapCliente(oldResult.rows[0]);

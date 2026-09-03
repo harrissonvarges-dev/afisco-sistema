@@ -30,6 +30,7 @@ function ensureSchema() {
                     CREATE TABLE IF NOT EXISTS clientes (
                         id BIGSERIAL PRIMARY KEY,
                         name TEXT NOT NULL,
+                        contact_name TEXT NOT NULL DEFAULT '',
                         cnpj TEXT NOT NULL DEFAULT '',
                         phone TEXT NOT NULL DEFAULT '',
                         responsible TEXT NOT NULL DEFAULT '',
@@ -41,6 +42,7 @@ function ensureSchema() {
                         status TEXT NOT NULL DEFAULT 'ativo'
                     )
                 `);
+                await db.query("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS contact_name TEXT NOT NULL DEFAULT ''");
                 await db.query("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS phone TEXT NOT NULL DEFAULT ''");
                 await db.query("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS collector TEXT NOT NULL DEFAULT ''");
                 await db.query('ALTER TABLE clientes ADD COLUMN IF NOT EXISTS last_adjustment_date DATE');
@@ -214,6 +216,7 @@ function mapCliente(row) {
     return {
         id: Number(row.id),
         name: row.name,
+        contactName: row.contact_name || '',
         cnpj: row.cnpj || '',
         phone: row.phone || '',
         responsible: row.responsible || '',
