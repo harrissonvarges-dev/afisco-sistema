@@ -2183,8 +2183,10 @@
             const responsaveis = [...new Set(clientesData.map(c => String(c.responsible || '').trim()).filter(Boolean))]
                 .sort((a, b) => a.localeCompare(b, 'pt-BR'));
             select.innerHTML = '<option value="todos">Todos os responsáveis</option>'
+                + (currentUser?.role !== 'admin' ? '<option value="meus">Somente meus clientes</option>' : '')
                 + responsaveis.map(nome => `<option value="${escapeHtml(nome)}">${escapeHtml(nome)}</option>`).join('');
-            select.value = responsaveis.includes(currentValue) ? currentValue : 'todos';
+            const validValues = ['todos', ...(currentUser?.role !== 'admin' ? ['meus'] : []), ...responsaveis];
+            select.value = validValues.includes(currentValue) ? currentValue : 'todos';
         }
 
         function matchesBillingValue(value, filter) {
@@ -2220,7 +2222,9 @@
                 if(!cli) return false;
                 const matchName = cli.name.toLowerCase().includes(search);
                 const matchStatus = statusFilter === 'todos' || mensalidadeDisplayStatus(item) === statusFilter;
-                const matchResponsible = responsibleFilter === 'todos' || cli.responsible === responsibleFilter;
+                const matchResponsible = responsibleFilter === 'todos'
+                    || (responsibleFilter === 'meus' && canManageClient(cli))
+                    || cli.responsible === responsibleFilter;
                 const matchValue = matchesBillingValue(item.previsto, valueFilter);
                 return matchName && matchStatus && matchResponsible && matchValue;
             });
@@ -2296,7 +2300,9 @@
                     && item.year === year
                     && cli.name.toLowerCase().includes(search)
                     && (statusFilter === 'todos' || mensalidadeDisplayStatus(item) === statusFilter)
-                    && (responsibleFilter === 'todos' || cli.responsible === responsibleFilter)
+                    && (responsibleFilter === 'todos'
+                        || (responsibleFilter === 'meus' && canManageClient(cli))
+                        || cli.responsible === responsibleFilter)
                     && matchesBillingValue(item.previsto, valueFilter)
                     && canOperateMensalidade(item);
             });
