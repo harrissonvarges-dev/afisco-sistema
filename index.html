@@ -1347,6 +1347,12 @@
                 : { month: month - 1, year };
         }
 
+        function getFollowingPaymentPeriod(month, year) {
+            return month === 12
+                ? { month: 1, year: year + 1 }
+                : { month: month + 1, year };
+        }
+
         function formatCurrency(val) {
             if (val === null || val === undefined) return '';
             if (valuesHidden) return 'R$ ••••••';
@@ -1464,8 +1470,7 @@
 
         function getClientPaymentStatus(clientId) {
             const { month, year } = getSelectedPeriod();
-            const reference = getPreviousReferencePeriod(month, year);
-            const item = mensalidadesData.find(candidate => candidate.clientId === clientId && candidate.month === reference.month && candidate.year === reference.year);
+            const item = mensalidadesData.find(candidate => candidate.clientId === clientId && candidate.month === month && candidate.year === year);
             return item ? mensalidadeDisplayStatus(item) : 'Sem mensalidade';
         }
 
@@ -1638,12 +1643,13 @@
         // ================= DASHBOARD LOGIC =================
         function renderDashboard() {
             const { month, year } = getSelectedPeriod();
-            const reference = getPreviousReferencePeriod(month, year);
-            document.getElementById('dashSubtitle').innerText = `Recebimentos de ${mesesNomes[month]} de ${year}, referentes a ${mesesNomes[reference.month]} de ${reference.year}.`;
-            document.getElementById('lblCurrentMonthYear').innerText = `${mesesNomes[month]} / ${year} · Ref. ${mesesNomes[reference.month]}`;
+            const reference = { month, year };
+            const paymentPeriod = getFollowingPaymentPeriod(month, year);
+            document.getElementById('dashSubtitle').innerText = `Recebimentos de ${mesesNomes[paymentPeriod.month]} de ${paymentPeriod.year}, referentes a ${mesesNomes[reference.month]} de ${reference.year}.`;
+            document.getElementById('lblCurrentMonthYear').innerText = `${mesesNomes[paymentPeriod.month]} / ${paymentPeriod.year} · Ref. ${mesesNomes[reference.month]}`;
 
             const activeClients = clientesData.filter(c => c.status === 'ativo');
-            const mensPeriod = mensalidadesData.filter(m => m.month === reference.month && m.year === reference.year);
+            const mensPeriod = mensalidadesData.filter(m => m.month === month && m.year === year);
 
             let previsto = 0;
             let recebido = 0;
@@ -1702,9 +1708,9 @@
                 return;
             }
 
-            const { month, year } = getSelectedPeriod();
-            const reference = reportingReference || getPreviousReferencePeriod(month, year);
-            period.innerText = `${mesesNomes[month]} / ${year} · Ref. ${mesesNomes[reference.month]} / ${reference.year}`;
+            const { month, year } = reportingReference || getSelectedPeriod();
+            const paymentPeriod = getFollowingPaymentPeriod(month, year);
+            period.innerText = `${mesesNomes[paymentPeriod.month]} / ${paymentPeriod.year} · Ref. ${mesesNomes[month]} / ${year}`;
             const summary = new Map();
             mensPeriod.forEach(item => {
                 const client = clientesData.find(candidate => candidate.id === item.clientId);
