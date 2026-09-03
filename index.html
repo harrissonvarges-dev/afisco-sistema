@@ -2579,9 +2579,9 @@
         function buildReceiptCopy(item, cli, copyLabel, pix) {
             const isPaid = item.status === 'Pago';
             const isOfficeCopy = copyLabel === 'VIA DO ESCRITÓRIO';
-            const showQr = !isOfficeCopy && Boolean(pix.qr);
+            const showQr = !isPaid && !isOfficeCopy && Boolean(pix.qr);
             const displayValue = isPaid && item.paidValue > 0 ? item.paidValue : item.previsto;
-            const documentTitle = isPaid ? 'RECIBO' : 'HONORÁRIOS CONTÁBEIS';
+            const documentTitle = isPaid ? 'RECIBO DE PAGAMENTO' : 'HONORÁRIOS CONTÁBEIS';
             const receiptNumber = `AF-${item.year}${String(item.month).padStart(2, '0')}-${item.id}`;
             return `
                 <section class="receipt-copy flex flex-col bg-white p-5 sm:p-6">
@@ -2599,6 +2599,13 @@
                         </div>
                     </header>
 
+                    ${isPaid ? `
+                        <div class="mt-3 rounded-xl border-2 border-emerald-500 bg-emerald-50 px-4 py-3 text-center text-emerald-800">
+                            <div class="flex items-center justify-center gap-2 text-base font-black uppercase tracking-wide"><i class="fa-solid fa-circle-check"></i> Pagamento confirmado</div>
+                            <p class="mt-1 text-[10px] font-semibold">Recebemos de ${escapeHtml(cli.name)} o valor de ${formatCurrencyVisible(displayValue)}, referente aos honorários contábeis de ${mesesNomes[item.month]} de ${item.year}${item.paidDate ? `, pago em ${formatDate(item.paidDate)}` : ''}.</p>
+                        </div>
+                    ` : ''}
+
                     <div class="mt-3 grid flex-1 ${showQr ? 'grid-cols-[1fr_auto]' : 'grid-cols-1'} gap-4">
                         <div class="min-w-0">
                             <div class="text-[10px] uppercase text-slate-400">Cliente</div>
@@ -2612,7 +2619,7 @@
                                 ${item.paidDate ? `<div><span class="block uppercase text-slate-400">Pago em</span><strong>${formatDate(item.paidDate)}</strong></div>` : ''}
                             </div>
 
-                            ${pix.key ? `<div class="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-[10px] leading-4 text-afisco-blue"><strong class="block"><i class="fa-brands fa-pix mr-1"></i>PIX: ${escapeHtml(pix.key)}</strong>${pix.recipient ? `<strong class="block text-[9px] text-slate-700">Em nome de: ${escapeHtml(pix.recipient)}</strong>` : ''}<span>${isPaid ? 'Pagamento identificado. Obrigado!' : showQr ? 'Pague pelo número ou pelo QR Code ao lado.' : 'Pague utilizando a chave PIX acima.'}</span></div>` : ''}
+                            ${!isPaid && pix.key ? `<div class="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-[10px] leading-4 text-afisco-blue"><strong class="block"><i class="fa-brands fa-pix mr-1"></i>PIX: ${escapeHtml(pix.key)}</strong>${pix.recipient ? `<strong class="block text-[9px] text-slate-700">Em nome de: ${escapeHtml(pix.recipient)}</strong>` : ''}<span>${showQr ? 'Pague pelo número ou pelo QR Code ao lado.' : 'Pague utilizando a chave PIX acima.'}</span></div>` : ''}
                         </div>
                         ${showQr ? `
                             <div class="flex flex-col items-center justify-center">
