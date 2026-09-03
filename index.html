@@ -408,7 +408,7 @@
                 <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                         <h3 class="flex items-center gap-2 font-bold text-afisco-blue"><i class="fa-solid fa-users-viewfinder text-afisco-red"></i> Valores por responsável</h3>
-                        <p class="mt-1 text-xs text-slate-500">Visão exclusiva de Hélio para separar o que pertence a cada carteira no período.</p>
+                        <p id="responsibleSummaryDescription" class="mt-1 text-xs text-slate-500">Resumo financeiro da carteira no período selecionado.</p>
                     </div>
                     <span id="responsibleSummaryPeriod" class="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600"></span>
                 </div>
@@ -1700,22 +1700,27 @@
             const section = document.getElementById('adminResponsibleSummary');
             const cards = document.getElementById('responsibleSummaryCards');
             const period = document.getElementById('responsibleSummaryPeriod');
+            const description = document.getElementById('responsibleSummaryDescription');
             if (!section || !cards || !period) return;
             const isAdmin = currentUser?.role === 'admin';
-            section.classList.toggle('hidden', !isAdmin);
-            if (!isAdmin) {
-                cards.innerHTML = '';
-                return;
-            }
+            section.classList.remove('hidden');
+            if (description) description.innerText = isAdmin
+                ? 'Visão completa das carteiras de todos os responsáveis.'
+                : 'Visão individual: somente os dados da sua carteira são exibidos.';
 
             const { month, year } = reportingReference || getSelectedPeriod();
             const paymentPeriod = getFollowingPaymentPeriod(month, year);
             period.innerText = `${mesesNomes[paymentPeriod.month]} / ${paymentPeriod.year} · Ref. ${mesesNomes[month]} / ${year}`;
             const summary = new Map();
-            mensPeriod.forEach(item => {
+            const visibleItems = isAdmin
+                ? mensPeriod
+                : mensPeriod.filter(item => canManageClient(clientesData.find(client => client.id === item.clientId)));
+            visibleItems.forEach(item => {
                 const client = clientesData.find(candidate => candidate.id === item.clientId);
                 if (!client) return;
-                const responsible = String(client.responsible || 'Sem responsável').trim() || 'Sem responsável';
+                const responsible = isAdmin
+                    ? (String(client.responsible || 'Sem responsável').trim() || 'Sem responsável')
+                    : (String(currentUser?.responsibleName || currentUser?.name || 'Minha carteira').trim() || 'Minha carteira');
                 const key = normalizePersonName(responsible) || 'sem-responsavel';
                 if (!summary.has(key)) {
                     summary.set(key, { responsible, previsto: 0, recebido: 0, aReceber: 0, clients: new Set() });
@@ -1742,11 +1747,12 @@
             }
             cards.innerHTML = groups.map(([key, group]) => {
                 const isHelio = key === 'helio';
+                const ownPortfolio = !isAdmin;
                 return `
-                    <article class="rounded-xl border p-4 ${isHelio ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-slate-50'}">
+                    <article class="rounded-xl border p-4 ${isHelio || ownPortfolio ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-slate-50'}">
                         <div class="flex items-start justify-between gap-2">
                             <div><div class="font-black text-afisco-blue">${escapeHtml(group.responsible)}</div><div class="text-[10px] text-slate-500">${group.clients.size} ${group.clients.size === 1 ? 'cliente' : 'clientes'}</div></div>
-                            ${isHelio ? '<span class="rounded-full bg-blue-200 px-2 py-0.5 text-[9px] font-bold uppercase text-blue-900">Do Hélio</span>' : ''}
+                            ${ownPortfolio ? '<span class="rounded-full bg-blue-200 px-2 py-0.5 text-[9px] font-bold uppercase text-blue-900">Minha carteira</span>' : isHelio ? '<span class="rounded-full bg-blue-200 px-2 py-0.5 text-[9px] font-bold uppercase text-blue-900">Do Hélio</span>' : ''}
                         </div>
                         <div class="mt-3 grid grid-cols-3 gap-2 border-t border-slate-200 pt-3 text-[10px]">
                             <div><span class="block uppercase text-slate-400">Previsto</span><strong class="text-slate-700">${formatCurrency(group.previsto)}</strong></div>
