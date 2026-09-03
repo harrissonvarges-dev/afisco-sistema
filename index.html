@@ -1030,6 +1030,7 @@
                 <div class="flex flex-wrap gap-2">
                     <button onclick="closeReceiptModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition"><i class="fa-solid fa-xmark mr-1"></i> Fechar</button>
                     <button id="receiptWhatsAppButton" onclick="shareActiveReceiptWhatsApp()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition shadow"><i class="fa-solid fa-download mr-1"></i> Baixar recibo</button>
+                    <button id="receiptNativeShareButton" onclick="shareActiveReceiptNative()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-xl transition shadow"><i class="fa-brands fa-whatsapp mr-1"></i> Enviar no WhatsApp</button>
                     <button onclick="printReceipt()" class="px-4 py-2 bg-afisco-blue hover:bg-blue-800 text-white text-xs font-semibold rounded-xl transition shadow"><i class="fa-solid fa-print mr-1"></i> Imprimir</button>
                 </div>
             </div>
@@ -2272,7 +2273,7 @@
                     <td class="p-4 align-top text-right">
                         <div class="flex flex-wrap justify-end gap-2">
                             ${canOperate && item.status !== 'Pago' ? `<button onclick="event.stopPropagation(); openWhatsAppForClient(${cli.id}, ${item.id})" title="Cobrar pelo WhatsApp" aria-label="Cobrar pelo WhatsApp" class="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100 hover:text-emerald-900"><i class="fa-brands fa-whatsapp"></i></button>` : ''}
-                            ${canOperate ? `<button onclick="event.stopPropagation(); shareReceiptWhatsApp(${item.id})" title="Baixar mensalidade ou recibo" aria-label="Baixar mensalidade ou recibo" class="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100 hover:text-emerald-900"><i class="fa-solid fa-download"></i></button><button onclick="event.stopPropagation(); openReceiptModal(${item.id})" title="Imprimir mensalidade" aria-label="Imprimir mensalidade" class="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 transition hover:bg-slate-200 hover:text-afisco-blue"><i class="fa-solid fa-print"></i></button><button onclick="event.stopPropagation(); openMensalidadeModal(${item.id})" title="${item.status === 'Pago' ? 'Editar pagamento' : 'Dar baixa'}" aria-label="${item.status === 'Pago' ? 'Editar pagamento' : 'Dar baixa'}" class="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 transition hover:bg-blue-100 hover:text-blue-800"><i class="fa-solid ${item.status === 'Pago' ? 'fa-pen-to-square' : 'fa-check'}"></i></button>` : ''}
+                            ${canOperate ? `<button onclick="event.stopPropagation(); shareReceiptWhatsApp(${item.id})" title="Baixar mensalidade ou recibo" aria-label="Baixar mensalidade ou recibo" class="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100 hover:text-emerald-900"><i class="fa-solid fa-download"></i></button><button onclick="event.stopPropagation(); shareReceiptNative(${item.id})" title="Enviar documento no WhatsApp instalado" aria-label="Enviar documento no WhatsApp instalado" class="flex h-9 w-9 items-center justify-center rounded-lg bg-green-50 text-green-700 transition hover:bg-green-100 hover:text-green-900"><i class="fa-brands fa-whatsapp"></i></button><button onclick="event.stopPropagation(); openReceiptModal(${item.id})" title="Imprimir mensalidade" aria-label="Imprimir mensalidade" class="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 transition hover:bg-slate-200 hover:text-afisco-blue"><i class="fa-solid fa-print"></i></button><button onclick="event.stopPropagation(); openMensalidadeModal(${item.id})" title="${item.status === 'Pago' ? 'Editar pagamento' : 'Dar baixa'}" aria-label="${item.status === 'Pago' ? 'Editar pagamento' : 'Dar baixa'}" class="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 transition hover:bg-blue-100 hover:text-blue-800"><i class="fa-solid ${item.status === 'Pago' ? 'fa-pen-to-square' : 'fa-check'}"></i></button>` : ''}
                         </div>
                     </td>
                 `;
@@ -2550,6 +2551,7 @@
                 ? `${receipts[0].item.status === 'Pago' ? 'Recibo' : 'Honorários Contábeis'} de ${receipts[0].cli.name}`
                 : `Impressão em lote · ${receipts.length} documentos`;
             document.getElementById('receiptWhatsAppButton').classList.toggle('hidden', receipts.length !== 1);
+            document.getElementById('receiptNativeShareButton').classList.toggle('hidden', receipts.length !== 1);
             document.getElementById('receiptModal').classList.remove('hidden');
             document.body.classList.add('overflow-hidden');
         }
@@ -2699,6 +2701,71 @@
             }
         }
 
+        function buildReceiptShareMessage(item, cli) {
+            const amount = item.status === 'Pago' && item.paidValue > 0 ? item.paidValue : item.previsto;
+            const pix = getClientPaymentPix(cli);
+            const pixMessage = pix.key ? ` PIX: ${pix.key}${pix.recipient ? `, em nome de ${pix.recipient}` : ''}.` : '';
+            return `Olá, ${cli.name}! Segue ${item.status === 'Pago' ? 'o recibo' : 'o documento de honorários contábeis'} da Afisco Contabilidade referente a ${mesesNomes[item.month]} de ${item.year}, no valor de ${formatCurrencyVisible(amount)}, com vencimento em ${formatDate(item.due)}.${pixMessage}`;
+        }
+
+        async function shareReceiptNative(id) {
+            const data = getReceiptData(id);
+            if (!data) {
+                showToast('Este recibo não está disponível no seu acesso.', 'error');
+                return false;
+            }
+            if (typeof html2canvas !== 'function') {
+                showToast('Não foi possível preparar a imagem. Atualize a página e tente novamente.', 'error');
+                return false;
+            }
+            const { item, cli } = data;
+            showReceiptModal([id]);
+            const receiptDocument = document.querySelector(`.receipt-document[data-receipt-id="${id}"]`);
+            const clientCopy = receiptDocument?.querySelector('.receipt-copy');
+            if (!clientCopy) return false;
+            const button = document.getElementById('receiptNativeShareButton');
+            const originalLabel = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Preparando...';
+            try {
+                await waitForReceiptImages(clientCopy);
+                const canvas = await html2canvas(clientCopy, {
+                    scale: 2,
+                    backgroundColor: '#ffffff',
+                    useCORS: true,
+                    logging: false
+                });
+                const blob = await canvasToBlob(canvas);
+                const fileName = companyDownloadFileName(cli.name);
+                const file = new File([blob], fileName, { type: 'image/png' });
+                if (!navigator.share || !navigator.canShare?.({ files: [file] })) {
+                    showToast('O navegador não oferece compartilhamento com arquivos. Use o Microsoft Edge ou Chrome atualizado com o WhatsApp instalado.', 'error');
+                    return false;
+                }
+                await navigator.share({
+                    files: [file],
+                    title: 'Afisco Contabilidade',
+                    text: buildReceiptShareMessage(item, cli)
+                });
+                showToast('Documento encaminhado para o compartilhamento do Windows.');
+                return true;
+            } catch (error) {
+                if (error?.name !== 'AbortError') showToast(error.message || 'Não foi possível compartilhar o recibo.', 'error');
+                return false;
+            } finally {
+                button.disabled = false;
+                button.innerHTML = originalLabel;
+            }
+        }
+
+        function shareActiveReceiptNative() {
+            if (activeReceiptIds.length !== 1) {
+                showToast('Abra apenas um recibo para enviar pelo WhatsApp.', 'error');
+                return;
+            }
+            shareReceiptNative(activeReceiptIds[0]);
+        }
+
         function shareActiveReceiptWhatsApp() {
             if (activeReceiptIds.length !== 1) {
                 showToast('Abra apenas um recibo para enviar pelo WhatsApp.', 'error');
@@ -2788,8 +2855,8 @@
                 closeMensalidadeModal();
                 initApp();
                 showToast('Pagamento salvo no Neon.');
-                if (updated.status === 'Pago' && window.confirm('Pagamento registrado. Deseja baixar o recibo do cliente?')) {
-                    await shareReceiptWhatsApp(updated.id);
+                if (updated.status === 'Pago' && window.confirm('Pagamento registrado. Deseja enviar o recibo pelo WhatsApp instalado?')) {
+                    await shareReceiptNative(updated.id);
                 }
             } catch (error) {
                 showToast(error.message, 'error');
