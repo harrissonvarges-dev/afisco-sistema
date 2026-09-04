@@ -198,6 +198,7 @@
             .receipt-copies { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; min-height: 118mm !important; }
             .receipt-copy { min-height: 118mm !important; padding: 5mm !important; }
             .receipt-copy + .receipt-copy { border-top: 0 !important; border-left: 1px dashed #555 !important; }
+            .manual-payment-date { display: block !important; }
         }
     </style>
 </head>
@@ -2639,6 +2640,10 @@
                                 <span class="mt-1.5 text-[9px] font-bold text-slate-500">${escapeHtml(pix.label)}</span>
                             </div>
                         ` : ''}
+                    </div>
+
+                    <div class="manual-payment-date mt-4 hidden text-[10px] font-semibold text-slate-700">
+                        Data do pagamento: <span class="ml-1 tracking-wider">____/____/________</span>
                     </div>
 
                     <footer class="mt-3 flex items-end justify-between gap-3 text-[9px] text-slate-500">
